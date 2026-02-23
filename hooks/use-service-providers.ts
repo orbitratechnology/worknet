@@ -20,7 +20,7 @@ export function useServiceProviders(
     category?: string | null;
     onlyAvailable?: boolean;
     limitCount?: number;
-  } = {}
+  } = {},
 ) {
   const [providers, setProviders] = useState<ServiceProvider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ export function useServiceProviders(
     const constraints: QueryConstraint[] = [];
 
     if (options.onlyAvailable) {
-      constraints.push(where('isAvailable', '==', true));
+      constraints.push(where('availabilityStatus', '==', 'online'));
     }
 
     if (options.category) {
@@ -64,7 +64,7 @@ export function useServiceProviders(
         console.error('Error fetching service providers:', err);
         setError(err);
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();

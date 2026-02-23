@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +21,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SettingRow = React.memo(function SettingRow({
@@ -348,7 +350,7 @@ export default function ProfileScreen() {
                 styles.cardGroup,
                 { backgroundColor: theme.card, borderColor: theme.border },
               ]}>
-              <View style={styles.settingRow}>
+              {/* <View style={styles.settingRow}>
                 <View style={styles.settingLeft}>
                   <View
                     style={[
@@ -374,11 +376,31 @@ export default function ProfileScreen() {
               </View>
               <View
                 style={[styles.divider, { backgroundColor: theme.border }]}
-              />
-              <SettingRow
+              /> */}
+              {/* <SettingRow
                 icon='shield'
                 title='Privacy & Security'
                 theme={theme}
+              />
+              <View
+                style={[styles.divider, { backgroundColor: theme.border }]}
+              /> */}
+              <SettingRow
+                icon='settings'
+                title='Settings'
+                theme={theme}
+                onPress={() => router.push('/(app)/settings')}
+              />
+              <View
+                style={[styles.divider, { backgroundColor: theme.border }]}
+              />
+              <SettingRow
+                icon='file-text'
+                title='Privacy Policy'
+                theme={theme}
+                onPress={() =>
+                  WebBrowser.openBrowserAsync('https://orbitratech.net')
+                }
               />
               <View
                 style={[styles.divider, { backgroundColor: theme.border }]}
@@ -387,6 +409,7 @@ export default function ProfileScreen() {
                 icon='help-circle'
                 title='Help & Support'
                 theme={theme}
+                onPress={() => Linking.openURL('mailto:admin@orbitratech.net')}
               />
             </View>
           </View>
