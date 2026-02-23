@@ -17,6 +17,7 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
@@ -46,7 +47,7 @@ export default function LoginScreen() {
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(
-        err.message || 'Failed to sign in. Please check your credentials.'
+        err.message || 'Failed to sign in. Please check your credentials.',
       );
     } finally {
       setLoading(false);
@@ -81,24 +82,30 @@ export default function LoginScreen() {
             contentInsetAdjustmentBehavior='automatic'>
             {/* Logo Section */}
             <View style={styles.logoSection}>
-              <View style={styles.logoTile}>
+              <Animated.View
+                entering={FadeInUp.delay(200).duration(800)}
+                style={styles.logoTile}>
                 <Image
                   source={require('@/assets/images/adaptive-icon.png')}
                   style={styles.logoImage}
                   contentFit='contain'
                 />
-              </View>
-              <ThemedText style={styles.welcomeTitle} type='title'>
-                Welcome Back
-              </ThemedText>
-              <ThemedText
-                style={[styles.welcomeSubtitle, { color: theme.subtext }]}>
-                Connecting you with trusted pros across Sri Lanka.
-              </ThemedText>
+              </Animated.View>
+              <Animated.View entering={FadeInDown.delay(400).duration(600)}>
+                <ThemedText style={styles.welcomeTitle} type='title'>
+                  Welcome Back
+                </ThemedText>
+                <ThemedText
+                  style={[styles.welcomeSubtitle, { color: theme.subtext }]}>
+                  Connecting you with trusted pros across Sri Lanka.
+                </ThemedText>
+              </Animated.View>
             </View>
 
             {/* Form */}
-            <View style={styles.form}>
+            <Animated.View
+              entering={FadeInDown.delay(600).duration(600)}
+              style={styles.form}>
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label} type='defaultSemiBold'>
                   Email
@@ -199,7 +206,7 @@ export default function LoginScreen() {
                   {loading ? 'Logging in...' : 'Log in'}
                 </ThemedText>
               </Pressable>
-            </View>
+            </Animated.View>
 
             {/* Divider */}
             <View style={styles.dividerContainer}>
@@ -235,15 +242,15 @@ export default function LoginScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.socialBtn,
-                  styles.appleBtn,
+                  { backgroundColor: theme.accent, borderColor: theme.accent },
                   pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={() =>
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
                 }>
-                <FontAwesome name='apple' size={20} color='#fff' />
+                <FontAwesome name='apple' size={20} color={theme.onAccent} />
                 <ThemedText
-                  style={[styles.socialBtnText, { color: '#fff' }]}
+                  style={[styles.socialBtnText, { color: theme.onAccent }]}
                   type='defaultSemiBold'>
                   Continue with Apple
                 </ThemedText>
@@ -357,7 +364,6 @@ const styles = StyleSheet.create({
     boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.15)',
   },
   loginBtnText: {
-    color: '#fff',
     fontSize: 16,
   },
   dividerContainer: {
@@ -390,10 +396,6 @@ const styles = StyleSheet.create({
   },
   socialBtnText: {
     fontSize: 15,
-  },
-  appleBtn: {
-    backgroundColor: '#000',
-    borderColor: '#000',
   },
   footer: {
     flexDirection: 'row',

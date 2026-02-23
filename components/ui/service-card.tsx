@@ -1,5 +1,5 @@
 import { Colors } from '@/constants/theme';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -20,6 +20,9 @@ export interface ServiceCardProps {
   rating: number;
   distance: string;
   imageUrl: string;
+  isVerified?: boolean;
+  price?: string;
+  experience?: number;
 }
 
 export const ServiceCard = React.memo(function ServiceCard({
@@ -29,6 +32,9 @@ export const ServiceCard = React.memo(function ServiceCard({
   rating,
   distance,
   imageUrl,
+  isVerified,
+  price,
+  experience,
 }: ServiceCardProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
@@ -64,9 +70,9 @@ export const ServiceCard = React.memo(function ServiceCard({
   const defaultAvatar = React.useMemo(
     () =>
       `https://ui-avatars.com/api/?name=${encodeURIComponent(
-        name
+        name,
       )}&background=000000&color=FFFFFF&bold=true`,
-    [name]
+    [name],
   );
 
   return (
@@ -107,17 +113,37 @@ export const ServiceCard = React.memo(function ServiceCard({
         </View>
 
         <View style={styles.details}>
-          <ThemedText
-            style={styles.name}
-            type='defaultSemiBold'
-            numberOfLines={1}>
-            {name}
-          </ThemedText>
-          <ThemedText
-            style={[styles.category, { color: theme.subtext }]}
-            numberOfLines={1}>
-            {category}
-          </ThemedText>
+          <View style={styles.nameHeader}>
+            <ThemedText
+              style={styles.name}
+              type='defaultSemiBold'
+              numberOfLines={1}>
+              {name}
+            </ThemedText>
+            {isVerified && (
+              <MaterialCommunityIcons
+                name='check-decagram'
+                size={14}
+                color='#0EA5E9'
+              />
+            )}
+          </View>
+          <View style={styles.infoRow}>
+            <ThemedText
+              style={[styles.category, { color: theme.subtext }]}
+              numberOfLines={1}>
+              {category}
+            </ThemedText>
+            {experience !== undefined && (
+              <>
+                <View style={[styles.dot, { backgroundColor: theme.border }]} />
+                <ThemedText
+                  style={[styles.experience, { color: theme.subtext }]}>
+                  {experience}y exp
+                </ThemedText>
+              </>
+            )}
+          </View>
 
           <View style={styles.footer}>
             <View style={styles.distanceContainer}>
@@ -127,15 +153,11 @@ export const ServiceCard = React.memo(function ServiceCard({
                 {distance}
               </ThemedText>
             </View>
-            <View
-              style={[
-                styles.actionTag,
-                { backgroundColor: theme.accent + '10' },
-              ]}>
-              <ThemedText style={[styles.actionText, { color: theme.accent }]}>
-                View
+            {price && (
+              <ThemedText style={[styles.priceText, { color: theme.accent }]}>
+                {price}
               </ThemedText>
-            </View>
+            )}
           </View>
         </View>
       </Pressable>
@@ -145,11 +167,11 @@ export const ServiceCard = React.memo(function ServiceCard({
 
 const styles = StyleSheet.create({
   containerWrapper: {
-    width: '48%',
+    width: '100%',
     marginBottom: 16,
   },
   container: {
-    borderRadius: 24,
+    borderRadius: 10,
     borderWidth: 1,
     overflow: 'hidden',
     shadowOffset: { width: 0, height: 8 },
@@ -187,13 +209,34 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 2,
   },
+  nameHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    width: '100%',
+  },
   name: {
     fontSize: 15,
     letterSpacing: -0.3,
+    flexShrink: 1,
   },
   category: {
     fontSize: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
+  },
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    marginHorizontal: 6,
+  },
+  experience: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   footer: {
     flexDirection: 'row',
@@ -209,14 +252,8 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  actionTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  actionText: {
-    fontSize: 10,
+  priceText: {
+    fontSize: 11,
     fontWeight: '800',
-    textTransform: 'uppercase',
   },
 });

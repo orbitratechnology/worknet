@@ -6,6 +6,7 @@ interface LocationState {
   coords: Location.LocationObjectCoords | null;
   city: string | null;
   district: string | null;
+  country: string | null;
   loading: boolean;
   error: string | null;
 }
@@ -24,6 +25,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     coords: null,
     city: null,
     district: null,
+    country: null,
     loading: true,
     error: null,
   });
@@ -68,6 +70,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         coords: location.coords,
         city: address?.city || address?.subregion || 'Unknown Location',
         district: address?.district || address?.subregion || null,
+        country: address?.country || null,
         loading: false,
         error: null,
       });

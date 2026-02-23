@@ -17,6 +17,7 @@ export interface ServiceListCardProps {
   distance: string;
   startingPrice: string;
   imageUrl?: string;
+  availabilityStatus?: 'online' | 'offline';
 }
 
 export const ServiceListCard = memo(function ServiceListCard({
@@ -29,6 +30,7 @@ export const ServiceListCard = memo(function ServiceListCard({
   distance,
   startingPrice,
   imageUrl,
+  availabilityStatus,
 }: ServiceListCardProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
@@ -52,7 +54,7 @@ export const ServiceListCard = memo(function ServiceListCard({
         transform: [{ scale: pressed ? 0.99 : 1 }],
       },
     ],
-    [theme.card, theme.border]
+    [theme.card, theme.border],
   );
 
   return (
@@ -95,7 +97,7 @@ export const ServiceListCard = memo(function ServiceListCard({
             style={[styles.ratingPill, { backgroundColor: theme.gold + '20' }]}>
             <Feather
               name='star'
-              size={12}
+              size={11}
               color={theme.gold}
               fill={theme.gold}
             />
@@ -105,27 +107,22 @@ export const ServiceListCard = memo(function ServiceListCard({
           </View>
         </View>
 
-        <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
         <View style={styles.footer}>
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
-              <Feather name='navigation' size={12} color={theme.subtext} />
+              <Feather name='navigation' size={10} color={theme.subtext} />
               <ThemedText style={[styles.metaText, { color: theme.subtext }]}>
                 {distance}
               </ThemedText>
             </View>
             <View style={[styles.metaDot, { backgroundColor: theme.border }]} />
-            <ThemedText style={styles.availabilityText}>Available</ThemedText>
+            <ThemedText style={styles.availabilityText}>
+              {availabilityStatus === 'online' ? 'Available' : 'Offline'}
+            </ThemedText>
           </View>
 
           <View style={styles.priceContainer}>
-            <ThemedText style={[styles.pricePrefix, { color: theme.subtext }]}>
-              from
-            </ThemedText>
-            <ThemedText style={styles.priceText}>
-              LKR {startingPrice}
-            </ThemedText>
+            <ThemedText style={styles.priceText}>{startingPrice}</ThemedText>
           </View>
         </View>
       </View>
@@ -135,117 +132,109 @@ export const ServiceListCard = memo(function ServiceListCard({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
-    padding: 12,
-    marginBottom: 16,
+    padding: 10,
+    marginBottom: 12,
     flexDirection: 'row',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.01,
+    shadowRadius: 8,
     elevation: 1,
-    gap: 12,
+    gap: 10,
   },
   imageWrapper: {
     position: 'relative',
   },
   image: {
-    width: 90,
-    height: 90,
-    borderRadius: 18,
+    width: 70,
+    height: 70,
+    borderRadius: 14,
     backgroundColor: '#f1f5f9',
   },
   verifiedBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
   },
   mainInfo: {
     flex: 1,
-    marginRight: 8,
+    marginRight: 4,
   },
   name: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '700',
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
   },
   role: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
-    marginTop: 1,
+    marginTop: 0,
   },
   ratingPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   ratingText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-  },
-  divider: {
-    height: 1,
-    marginBottom: 10,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 4,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   metaText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   metaDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
   },
   availabilityText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#10B981',
   },
   priceContainer: {
     alignItems: 'flex-end',
   },
-  pricePrefix: {
-    fontSize: 9,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
   priceText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
   },
 });

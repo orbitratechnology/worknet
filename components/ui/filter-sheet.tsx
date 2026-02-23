@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/theme';
 import { Feather } from '@expo/vector-icons';
+import Slider from '@react-native-community/slider';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -12,22 +13,31 @@ import { ThemedText } from '../themed-text';
 export interface FilterOptions {
   sortBy: string;
   rating: string;
-  distance: number | string;
+  distance: number;
   priceRange?: string;
 }
 
 export interface FilterSheetProps {
   onApply: (filters: FilterOptions) => void;
   onClose?: () => void;
+  initialFilters?: FilterOptions;
 }
 
-export function FilterSheet({ onApply, onClose }: FilterSheetProps) {
+export function FilterSheet({
+  onApply,
+  onClose,
+  initialFilters,
+}: FilterSheetProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
-  const [sortBy, setSortBy] = useState('Nearest');
-  const [rating, setRating] = useState('4.0 & Up');
-  const [distance, setDistance] = useState<number | string>(15);
-  const [priceRange, setPriceRange] = useState('All');
+  const [sortBy, setSortBy] = useState(initialFilters?.sortBy || 'Nearest');
+  const [rating, setRating] = useState(initialFilters?.rating || '4.0 & Up');
+  const [distance, setDistance] = useState<number>(
+    typeof initialFilters?.distance === 'number' ? initialFilters.distance : 15
+  );
+  const [priceRange, setPriceRange] = useState(
+    initialFilters?.priceRange || 'All'
+  );
 
   const handleApply = () => {
     onApply({
@@ -44,7 +54,13 @@ export function FilterSheet({ onApply, onClose }: FilterSheetProps) {
         <ThemedText style={styles.title} type='defaultSemiBold'>
           Filter & Sort
         </ThemedText>
-        <TouchableOpacity onPress={onClose}>
+        <TouchableOpacity
+          onPress={() => {
+            setSortBy('Nearest');
+            setRating('4.0 & Up');
+            setDistance(15);
+            setPriceRange('All');
+          }}>
           <ThemedText style={[styles.resetText, { color: theme.accent }]}>
             Reset
           </ThemedText>
@@ -100,17 +116,21 @@ export function FilterSheet({ onApply, onClose }: FilterSheetProps) {
             ]}>
             <ThemedText
               style={[styles.distanceBadgeText, { color: theme.accent }]}>
-              15 km
+              {distance} km
             </ThemedText>
           </View>
         </View>
         <View style={styles.sliderContainer}>
-          <View style={[styles.track, { backgroundColor: theme.border }]} />
-          <View
-            style={[
-              styles.thumb,
-              { backgroundColor: theme.card, borderColor: theme.accent },
-            ]}
+          <Slider
+            style={{ width: '100%', height: 40 }}
+            minimumValue={1}
+            maximumValue={50}
+            step={1}
+            value={distance}
+            onValueChange={setDistance}
+            minimumTrackTintColor={theme.accent}
+            maximumTrackTintColor={theme.border}
+            thumbTintColor={theme.accent}
           />
           <View style={styles.sliderLabels}>
             <ThemedText style={[styles.sliderLabel, { color: theme.subtext }]}>
@@ -160,15 +180,6 @@ export function FilterSheet({ onApply, onClose }: FilterSheetProps) {
           type='defaultSemiBold'>
           Apply Filters
         </ThemedText>
-        <View
-          style={[
-            styles.countBadge,
-            { backgroundColor: theme.onAccent + '20' },
-          ]}>
-          <ThemedText style={[styles.countText, { color: theme.onAccent }]}>
-            24
-          </ThemedText>
-        </View>
       </TouchableOpacity>
     </View>
   );

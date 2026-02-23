@@ -4,7 +4,7 @@
       "collectionGroup": "service_providers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "categories", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "category", "order": "ASCENDING" },
         { "fieldPath": "rating", "order": "DESCENDING" }
       ]
     },
@@ -12,7 +12,7 @@
       "collectionGroup": "service_providers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "categories", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "category", "order": "ASCENDING" },
         { "fieldPath": "experienceYears", "order": "DESCENDING" }
       ]
     },

@@ -32,6 +32,13 @@ export default function AppLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name='explore'
+        options={{
+          title: 'Explore Problems',
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

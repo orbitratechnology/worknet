@@ -38,7 +38,7 @@ export default function ProviderProfileScreen() {
           setProviderData(doc.data());
         }
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -64,7 +64,7 @@ export default function ProviderProfileScreen() {
           <LinearGradient
             colors={[theme.accent, '#1E40AF']}
             style={styles.gradient}>
-            <ThemedText style={styles.enrollText}>
+            <ThemedText style={[styles.enrollText, { color: theme.onAccent }]}>
               Set up Professional Profile
             </ThemedText>
           </LinearGradient>
@@ -74,10 +74,7 @@ export default function ProviderProfileScreen() {
   }
 
   return (
-    <ThemedView
-      style={[
-        styles.container,
-      ]}>
+    <ThemedView style={[styles.container]}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity
@@ -117,7 +114,7 @@ export default function ProviderProfileScreen() {
             <View style={styles.heroInfo}>
               <ThemedText style={styles.name}>{providerData.name}</ThemedText>
               <ThemedText style={[styles.role, { color: theme.subtext }]}>
-                {providerData.professions?.join(' • ')}
+                {providerData.primaryProfession}
               </ThemedText>
               <View
                 style={[
@@ -212,15 +209,123 @@ export default function ProviderProfileScreen() {
               </View>
               <View>
                 <ThemedText style={styles.detailValue}>
-                  {providerData.location?.homeCity || 'Colombo'}
+                  {providerData.location?.homeCity}
+                  {providerData.location?.country
+                    ? `, ${providerData.location.country}`
+                    : ''}
                 </ThemedText>
                 <ThemedText
                   style={[styles.detailLabel, { color: theme.subtext }]}>
-                  Service Hub
+                  Service Hub ({providerData.serviceRadius || 25}km radius)
                 </ThemedText>
               </View>
             </View>
           </View>
+
+          {/* Expertise & Skills */}
+          {providerData.secondaryProfessions &&
+            providerData.secondaryProfessions.length > 0 && (
+              <View
+                style={[
+                  styles.sectionCard,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}>
+                <ThemedText style={styles.sectionTitle}>Expertise</ThemedText>
+                <View style={styles.chipGrid}>
+                  {providerData.secondaryProfessions.map(
+                    (skill: string, index: number) => (
+                      <View
+                        key={`skill-${index}`}
+                        style={[
+                          styles.areaChip,
+                          {
+                            backgroundColor: theme.secondaryBackground,
+                            borderColor: theme.border,
+                            borderWidth: 1,
+                          },
+                        ]}>
+                        <ThemedText
+                          style={[styles.areaChipText, { color: theme.text }]}>
+                          {skill}
+                        </ThemedText>
+                      </View>
+                    ),
+                  )}
+                </View>
+              </View>
+            )}
+
+          {/* Services Offered */}
+          {providerData.services && providerData.services.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}>
+              <ThemedText style={styles.sectionTitle}>
+                Services Offered
+              </ThemedText>
+              {providerData.services.map((service: any) => (
+                <View
+                  key={service.id}
+                  style={[
+                    styles.serviceItem,
+                    {
+                      backgroundColor: theme.secondaryBackground,
+                      borderColor: theme.border,
+                    },
+                  ]}>
+                  <View style={styles.serviceItemMain}>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText
+                        style={styles.serviceItemTitle}
+                        type='defaultSemiBold'>
+                        {service.title}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.serviceItemPrice,
+                          { color: theme.accent },
+                        ]}>
+                        Rs. {service.minPrice} - Rs. {service.maxPrice}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <ThemedText
+                    style={[styles.serviceItemDesc, { color: theme.subtext }]}
+                    numberOfLines={2}>
+                    {service.description}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Portfolio / Work Samples */}
+          {providerData.portfolioUrls &&
+            providerData.portfolioUrls.length > 0 && (
+              <View
+                style={[
+                  styles.sectionCard,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}>
+                <ThemedText style={styles.sectionTitle}>Recent Work</ThemedText>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.portfolioScroll}>
+                  {providerData.portfolioUrls.map(
+                    (url: string, index: number) => (
+                      <Image
+                        key={`portfolio-${index}-${url}`}
+                        source={url}
+                        style={styles.portfolioThumb}
+                      />
+                    ),
+                  )}
+                </ScrollView>
+              </View>
+            )}
 
           {/* Pricing & Terms */}
           <View
@@ -392,6 +497,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  areaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 6,
+  },
+  areaChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  serviceItem: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    marginBottom: 12,
+  },
+  serviceItemMain: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  serviceItemTitle: { fontSize: 16 },
+  serviceItemPrice: { fontSize: 14, fontWeight: '600', marginTop: 2 },
+  serviceItemDesc: { fontSize: 13, lineHeight: 18 },
+  portfolioScroll: { gap: 12 },
+  portfolioThumb: { width: 120, height: 120, borderRadius: 12 },
   pricingGrid: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -427,7 +566,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   enrollText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
   },

@@ -28,9 +28,6 @@ export function TopBar() {
           />
         </View>
         <View style={styles.leftSection}>
-          <ThemedText style={[styles.label, { color: theme.subtext }]}>
-            Current Location
-          </ThemedText>
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={refreshLocation}
@@ -43,7 +40,7 @@ export function TopBar() {
                 {city || 'Pick Location'}
               </ThemedText>
             )}
-            <Feather name='chevron-down' size={14} color={theme.subtext} />
+            <Feather name='refresh-cw' size={14} color={theme.subtext} />
           </TouchableOpacity>
         </View>
       </View>

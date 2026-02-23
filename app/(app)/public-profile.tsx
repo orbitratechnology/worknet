@@ -7,9 +7,11 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -27,13 +29,41 @@ export default function PublicProfileScreen() {
   const [provider, setProvider] = useState<ServiceProvider | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (id) {
-      fetchProvider();
+  const handleChat = async () => {
+    if (!provider) return;
+    const number = provider.whatsappNumber || provider.phoneNumber;
+    if (!number) {
+      Alert.alert('Error', 'No contact number available');
+      return;
     }
-  }, [id]);
+    const cleanNumber = number.replace(/\D/g, '');
+    const url = `whatsapp://send?phone=${cleanNumber}`;
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        await Linking.openURL(`https://wa.me/${cleanNumber}`);
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open WhatsApp');
+    }
+  };
 
-  const fetchProvider = async () => {
+  const handleCall = async () => {
+    if (!provider?.phoneNumber) {
+      Alert.alert('Error', 'No phone number available');
+      return;
+    }
+    try {
+      await Linking.openURL(`tel:${provider.phoneNumber}`);
+    } catch {
+      Alert.alert('Error', 'Could not open phone app');
+    }
+  };
+
+  const fetchProvider = useCallback(async () => {
+    if (!id) return;
     try {
       const docSnap = await getDoc(doc(db, 'service_providers', id as string));
       if (docSnap.exists()) {
@@ -44,7 +74,11 @@ export default function PublicProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchProvider();
+  }, [fetchProvider]);
 
   if (loading) {
     return (
@@ -97,9 +131,11 @@ export default function PublicProfileScreen() {
                 style={[
                   styles.statusDot,
                   {
-                    backgroundColor: provider.isAvailable
-                      ? '#4CAF50'
-                      : '#FF3B30',
+                    borderColor: theme.background,
+                    backgroundColor:
+                      provider.availabilityStatus === 'online'
+                        ? '#4CAF50'
+                        : '#FF3B30',
                   },
                 ]}
               />
@@ -110,19 +146,25 @@ export default function PublicProfileScreen() {
             <View style={styles.roleRow}>
               <ThemedText
                 style={[styles.providerRole, { color: theme.subtext }]}>
-                {provider.professions[0]}
+                {provider.primaryProfession}
               </ThemedText>
-              <View
-                style={[
-                  styles.verifiedBadge,
-                  { backgroundColor: theme.accent },
-                ]}>
-                <Feather name='check-circle' size={12} color={theme.onAccent} />
-                <ThemedText
-                  style={[styles.verifiedText, { color: theme.onAccent }]}>
-                  Verified
-                </ThemedText>
-              </View>
+              {provider.isVerified && (
+                <View
+                  style={[
+                    styles.verifiedBadge,
+                    { backgroundColor: theme.accent },
+                  ]}>
+                  <Feather
+                    name='check-circle'
+                    size={12}
+                    color={theme.onAccent}
+                  />
+                  <ThemedText
+                    style={[styles.verifiedText, { color: theme.onAccent }]}>
+                    Verified
+                  </ThemedText>
+                </View>
+              )}
             </View>
             <View style={[styles.ratingBadge, { backgroundColor: theme.card }]}>
               <Feather name='star' size={14} color='#FFB800' fill='#FFB800' />
@@ -148,15 +190,15 @@ export default function PublicProfileScreen() {
             </View>
             <View style={[styles.statCard, { backgroundColor: theme.card }]}>
               <ThemedText style={styles.statValue}>
-                ~{provider.serviceRadius}km
+                {provider.location?.homeCity || 'Near You'}
               </ThemedText>
               <ThemedText style={[styles.statLabel, { color: theme.subtext }]}>
-                Service Area
+                Home City
               </ThemedText>
             </View>
             <View style={[styles.statCard, { backgroundColor: theme.card }]}>
               <ThemedText style={styles.statValue}>
-                {provider.languages[0]}
+                {provider.languages?.[0] || 'English'}
               </ThemedText>
               <ThemedText style={[styles.statLabel, { color: theme.subtext }]}>
                 Lang.
@@ -164,15 +206,124 @@ export default function PublicProfileScreen() {
             </View>
           </View>
 
-          {/* Bio */}
+          {/* Pricing & Availability */}
+          <View
+            style={[
+              styles.infoCard,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <ThemedText style={styles.infoLabel}>Base Rate</ThemedText>
+                <ThemedText style={[styles.infoValue, { color: theme.accent }]}>
+                  Rs. {provider.pricing?.baseRate || 'Contact'}
+                  {provider.pricing?.type === 'Hourly' ? '/hr' : ''}
+                </ThemedText>
+              </View>
+              <View style={styles.infoItem}>
+                <ThemedText style={styles.infoLabel}>Availability</ThemedText>
+                <ThemedText
+                  style={[
+                    styles.infoValue,
+                    {
+                      color:
+                        provider.availabilityStatus === 'online'
+                          ? '#4CAF50'
+                          : theme.subtext,
+                    },
+                  ]}>
+                  {provider.availabilityStatus === 'online'
+                    ? 'Online Now'
+                    : 'Away'}
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+
+          {/* About */}
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle} type='subtitle'>
               About
             </ThemedText>
             <ThemedText style={[styles.sectionBody, { color: theme.text }]}>
-              {provider.bio}
+              {provider.about || provider.bio || 'No description provided.'}
             </ThemedText>
           </View>
+
+          {/* Professions/Skills */}
+          {provider.secondaryProfessions &&
+            provider.secondaryProfessions.length > 0 && (
+              <View style={styles.section}>
+                <ThemedText style={styles.sectionTitle} type='subtitle'>
+                  Expertise
+                </ThemedText>
+                <View style={[styles.chipGrid, { marginTop: 8 }]}>
+                  {provider.secondaryProfessions.map((skill, index) => (
+                    <View
+                      key={`skill-${index}`}
+                      style={[
+                        styles.areaChip,
+                        {
+                          backgroundColor: theme.card,
+                          borderColor: theme.border,
+                          borderWidth: 1,
+                        },
+                      ]}>
+                      <ThemedText
+                        style={[styles.areaChipText, { color: theme.text }]}>
+                        {skill}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+          {/* Service Area */}
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle} type='subtitle'>
+              Service Coverage
+            </ThemedText>
+            <View style={styles.chipGrid}>
+              <View
+                style={[
+                  styles.areaChip,
+                  { backgroundColor: theme.accent + '15' },
+                ]}>
+                <Feather name='map-pin' size={12} color={theme.accent} />
+                <ThemedText
+                  style={[styles.areaChipText, { color: theme.accent }]}>
+                  {provider.location?.homeCity}
+                  {provider.location?.country
+                    ? `, ${provider.location.country}`
+                    : ''}{' '}
+                  ({provider.serviceRadius || 25}km)
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+          {/* Work Samples */}
+          {provider.workSamples && provider.workSamples.length > 0 && (
+            <View style={styles.section}>
+              <ThemedText style={styles.sectionTitle} type='subtitle'>
+                Recent Work
+              </ThemedText>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.portfolioScroll}>
+                {provider.workSamples.map((url, index) => (
+                  <Image
+                    key={`work-sample-${index}-${url}`}
+                    source={url}
+                    style={styles.portfolioThumb}
+                    contentFit='cover'
+                    transition={200}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Dynamic Services List */}
           <View style={styles.section}>
@@ -239,7 +390,7 @@ export default function PublicProfileScreen() {
                 contentContainerStyle={styles.portfolioScroll}>
                 {provider.portfolioUrls.map((url, index) => (
                   <Image
-                    key={index}
+                    key={`portfolio-${index}-${url}`}
                     source={url}
                     style={styles.portfolioThumb}
                   />
@@ -258,6 +409,7 @@ export default function PublicProfileScreen() {
             { backgroundColor: theme.background, borderTopColor: theme.border },
           ]}>
           <TouchableOpacity
+            onPress={handleChat}
             style={[styles.chatBtn, { borderColor: theme.border }]}>
             <Feather name='message-circle' size={20} color={theme.text} />
             <ThemedText style={styles.chatBtnText} type='defaultSemiBold'>
@@ -265,6 +417,7 @@ export default function PublicProfileScreen() {
             </ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={handleCall}
             style={[styles.contactBtn, { backgroundColor: theme.accent }]}>
             <Feather name='phone-call' size={20} color={theme.onAccent} />
             <ThemedText
@@ -309,7 +462,6 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: '#fff',
   },
   providerName: { fontSize: 22, marginBottom: 4 },
   roleRow: {
@@ -327,7 +479,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 4,
   },
-  verifiedText: { fontSize: 10, color: '#fff', fontWeight: '800' },
+  verifiedText: { fontSize: 10, fontWeight: '800' },
   ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -352,6 +504,47 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 16, fontWeight: 'bold' },
   statLabel: { fontSize: 12, marginTop: 2 },
+  infoCard: {
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 30,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  infoItem: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 12,
+    opacity: 0.6,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  infoValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  areaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 6,
+  },
+  areaChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   section: { marginBottom: 32 },
   sectionTitle: { fontSize: 18, marginBottom: 16 },
   sectionBody: { fontSize: 15, lineHeight: 22 },
@@ -371,7 +564,7 @@ const styles = StyleSheet.create({
   serviceItemPrice: { fontSize: 14, fontWeight: '600', marginTop: 2 },
   serviceItemDesc: { fontSize: 13, lineHeight: 18 },
   bookBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8 },
-  bookBtnText: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
+  bookBtnText: { fontSize: 13, fontWeight: 'bold' },
   portfolioScroll: { gap: 12 },
   portfolioThumb: { width: 120, height: 120, borderRadius: 12 },
   bottomBar: {

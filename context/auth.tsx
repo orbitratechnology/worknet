@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (error) => {
         logger.error('Error fetching user profile', error);
         setLoading(false);
-      }
+      },
     );
 
     return unsubscribe;
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           lastActive: serverTimestamp(),
           createdAt: serverTimestamp(),
         },
-        { merge: true }
+        { merge: true },
       );
     } catch (err) {
       logger.error('Failed to record session', err);
@@ -128,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const cred = await signInWithEmailAndPassword(
           auth,
           email.trim(),
-          password
+          password,
         );
         await recordSession(cred.user);
         return cred;
@@ -137,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const cred = await createUserWithEmailAndPassword(
           auth,
           email.trim(),
-          password
+          password,
         );
 
         // Update Auth Profile
@@ -162,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             },
-            { merge: true }
+            { merge: true },
           );
         } catch (err) {
           logger.error('Failed to create user document', err);
@@ -175,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (err) {
           logger.warn('Failed to send verification email', err);
           Toast.warn(
-            'Account created, but verification email could not be sent.'
+            'Account created, but verification email could not be sent.',
           );
         }
         return cred;
@@ -183,11 +183,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle: async () => {
         try {
           const response = await GoogleAuth.signIn();
+          console.log('Google Sign-In Response:', response);
           if (response.type === 'success') {
             const credential = GoogleAuthProvider.credential(
-              response.data.idToken
+              response.data.idToken,
             );
+            console.log('Google Credential:', credential);
             const cred = await signInWithCredential(auth, credential);
+            console.log('Firebase Credential:', cred);
 
             // Ensure Firestore profile exists
             try {
@@ -200,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   photoUrl: cred.user.photoURL,
                   updatedAt: serverTimestamp(),
                 },
-                { merge: true }
+                { merge: true },
               );
             } catch (err) {
               logger.error('Failed to sync google profile to firestore', err);
@@ -240,7 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ...data,
             updatedAt: serverTimestamp(),
           },
-          { merge: true }
+          { merge: true },
         );
 
         // Also update Firebase Auth profile if name or photoUrl changed
@@ -264,7 +267,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(auth.currentUser);
       },
     }),
-    [user, userProfile, loading]
+    [user, userProfile, loading],
   );
 
   return (

@@ -147,7 +147,7 @@ export default function EditProfileScreen() {
                 />
                 {isUploading && (
                   <View style={styles.uploadOverlay}>
-                    <ActivityIndicator color='#fff' />
+                    <ActivityIndicator color={theme.onAccent} />
                   </View>
                 )}
                 <View

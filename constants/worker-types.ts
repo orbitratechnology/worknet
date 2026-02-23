@@ -1,0 +1,88 @@
+export const WORKER_TYPES = [
+  {
+    id: 'w1',
+    name: 'Plumber',
+    category: 'plumbing',
+    icon: 'pipe-wrench',
+    color: '#2196F3',
+  },
+  {
+    id: 'w2',
+    name: 'Electrician',
+    category: 'electrical',
+    icon: 'flash',
+    color: '#FFC107',
+  },
+  {
+    id: 'w3',
+    name: 'Carpenter',
+    category: 'carpentry',
+    icon: 'carpenter',
+    color: '#8D6E63',
+  },
+  {
+    id: 'w4',
+    name: 'Cleaner',
+    category: 'cleaning',
+    icon: 'vacuum',
+    color: '#00BCD4',
+  },
+  {
+    id: 'w5',
+    name: 'Mason',
+    category: 'construction',
+    icon: 'wall',
+    color: '#FF5722',
+  },
+  {
+    id: 'w6',
+    name: 'Painter',
+    category: 'finishing',
+    icon: 'format-paint',
+    color: '#E91E63',
+  },
+  {
+    id: 'w7',
+    name: 'Mechanic',
+    category: 'mechanical',
+    icon: 'wrench',
+    color: '#607D8B',
+  },
+  {
+    id: 'w8',
+    name: 'Welder',
+    category: 'construction',
+    icon: 'fountain-pen-tip',
+    color: '#455A64',
+  },
+  {
+    id: 'w9',
+    name: 'A/C Technician',
+    category: 'electrical',
+    icon: 'air-conditioner',
+    color: '#03A9F4',
+  },
+  {
+    id: 'w10',
+    name: 'Gardener',
+    category: 'agriculture',
+    icon: 'leaf',
+    color: '#4CAF50',
+  },
+  {
+    id: 'w11',
+    name: 'IT Technician',
+    category: 'tech',
+    icon: 'laptop',
+    color: '#3F51B5',
+  },
+  {
+    id: 'w12',
+    name: 'Security Pro',
+    category: 'safety',
+    icon: 'security',
+    color: '#F44336',
+  },
+];
+
+export type WorkerType = (typeof WORKER_TYPES)[0];

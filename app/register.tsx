@@ -17,6 +17,7 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
@@ -110,26 +111,32 @@ export default function RegisterScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             contentInsetAdjustmentBehavior='automatic'>
-            <View style={styles.logoSection}>
+            <Animated.View
+              entering={FadeInUp.delay(200).duration(800)}
+              style={styles.logoSection}>
               <Image
                 source={require('@/assets/images/adaptive-icon.png')}
                 style={styles.logo}
                 contentFit='contain'
               />
-            </View>
+            </Animated.View>
 
             {/* Title Section */}
-            <View style={styles.titleSection}>
+            <Animated.View
+              entering={FadeInDown.delay(400).duration(600)}
+              style={styles.titleSection}>
               <ThemedText style={styles.title} type='title'>
                 Create Account
               </ThemedText>
               <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
                 Join Worknet to find trusted help or earn money in Sri Lanka.
               </ThemedText>
-            </View>
+            </Animated.View>
 
             {/* Form */}
-            <View style={styles.form}>
+            <Animated.View
+              entering={FadeInDown.delay(600).duration(600)}
+              style={styles.form}>
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label} type='defaultSemiBold'>
                   Full Name
@@ -289,7 +296,7 @@ export default function RegisterScreen() {
                   {loading ? 'Creating Account...' : 'Create Account'}
                 </ThemedText>
               </Pressable>
-            </View>
+            </Animated.View>
 
             {/* Divider */}
             <View style={styles.dividerContainer}>
@@ -327,15 +334,15 @@ export default function RegisterScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.socialSquare,
-                  styles.appleSquare,
+                  { backgroundColor: theme.accent, borderColor: theme.accent },
                   pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={() =>
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
                 }>
-                <FontAwesome name='apple' size={24} color='#fff' />
+                <FontAwesome name='apple' size={24} color={theme.onAccent} />
                 <ThemedText
-                  style={[styles.socialSquareText, { color: '#fff' }]}
+                  style={[styles.socialSquareText, { color: theme.onAccent }]}
                   type='defaultSemiBold'>
                   Apple
                 </ThemedText>
@@ -464,7 +471,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   createBtnText: {
-    color: '#fff',
     fontSize: 16,
   },
   dividerContainer: {
@@ -496,10 +502,6 @@ const styles = StyleSheet.create({
   },
   socialSquareText: {
     fontSize: 15,
-  },
-  appleSquare: {
-    backgroundColor: '#000',
-    borderColor: '#000',
   },
   footer: {
     flexDirection: 'row',

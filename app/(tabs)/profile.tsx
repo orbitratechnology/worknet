@@ -8,7 +8,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   Pressable,
@@ -89,7 +89,11 @@ export default function ProfileScreen() {
   const theme = Colors[colorScheme];
 
   const [userData, setUserData] = useState<any>(null);
+  const [providerData, setProviderData] = useState<any>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [providerStatus, setProviderStatus] = useState<'online' | 'offline'>(
+    'online',
+  );
 
   const isProvider = !!userProfile?.isServiceProvider;
 
@@ -104,8 +108,25 @@ export default function ProfileScreen() {
       }
     });
 
-    return () => unsubscribeUser();
-  }, [user?.uid]);
+    let unsubscribeProvider: () => void;
+    if (userProfile?.isServiceProvider) {
+      unsubscribeProvider = onSnapshot(
+        doc(db, 'service_providers', user.uid),
+        (doc) => {
+          if (doc.exists()) {
+            const data = doc.data();
+            setProviderData(data);
+            setProviderStatus(data.availabilityStatus || 'online');
+          }
+        },
+      );
+    }
+
+    return () => {
+      unsubscribeUser();
+      unsubscribeProvider?.();
+    };
+  }, [user?.uid, userProfile?.isServiceProvider]);
 
   const profileImageUrl =
     userData?.photoUrl ||
@@ -122,82 +143,169 @@ export default function ProfileScreen() {
           contentContainerStyle={styles.scrollContent}>
           {/* Simple Header */}
           <View style={styles.header}>
-            <ThemedText style={styles.headerTitle}>Account</ThemedText>
-            <TouchableOpacity
-              onPress={() => router.push('/edit-profile')}
-              style={[styles.editCircle, { backgroundColor: theme.surface }]}>
-              <Feather name='settings' size={20} color={theme.text} />
-            </TouchableOpacity>
+            <ThemedText style={styles.headerTitle}>Profile</ThemedText>
           </View>
 
           {/* Profile Card */}
           <View style={styles.profileSection}>
-            <View
-              style={[
-                styles.profileCard,
-                { backgroundColor: theme.card, borderColor: theme.border },
-              ]}>
-              <Image source={profileImageUrl} style={styles.avatarLarge} />
-              <View style={styles.profileInfo}>
-                <ThemedText style={styles.profileNameMain}>
-                  {userData?.name || user?.displayName || 'User'}
-                </ThemedText>
-                <ThemedText
-                  style={[styles.profileEmail, { color: theme.subtext }]}>
-                  {user?.email}
-                </ThemedText>
-                {userData?.bio && (
-                  <ThemedText
-                    style={[styles.profileBio, { color: theme.subtext }]}
-                    numberOfLines={2}>
-                    {userData.bio}
+            {isProvider ? (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push('/(app)/provider-profile')}
+                style={[
+                  styles.providerCardPremium,
+                  { backgroundColor: theme.card, borderColor: theme.accent },
+                ]}>
+                <Image
+                  source={providerData?.imageUrl || profileImageUrl}
+                  style={styles.avatarLarge}
+                />
+                <View style={styles.profileInfo}>
+                  <ThemedText style={styles.profileNameMain}>
+                    {providerData?.name ||
+                      userData?.name ||
+                      user?.displayName ||
+                      'Provider'}
                   </ThemedText>
-                )}
-                <TouchableOpacity
-                  onPress={() => router.push('/edit-profile')}
-                  style={[
-                    styles.badgeProfile,
-                    { backgroundColor: theme.accent + '10' },
-                  ]}>
                   <ThemedText
-                    style={[styles.badgeTextProfile, { color: theme.accent }]}>
-                    Edit Profile
+                    style={[styles.profileEmail, { color: theme.subtext }]}>
+                    {providerData?.primaryProfession || 'Professional'}
                   </ThemedText>
-                </TouchableOpacity>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginTop: 4,
+                      gap: 4,
+                    }}>
+                    <MaterialCommunityIcons
+                      name='star'
+                      size={14}
+                      color='#FFB800'
+                    />
+                    <ThemedText style={{ fontSize: 13, fontWeight: '600' }}>
+                      {providerData?.rating?.toFixed(1) || '5.0'}
+                    </ThemedText>
+                    <ThemedText style={{ fontSize: 13, color: theme.subtext }}>
+                      ({providerData?.reviewCount || 0} reviews)
+                    </ThemedText>
+                  </View>
+                </View>
+                <Feather name='chevron-right' size={20} color={theme.subtext} />
+              </TouchableOpacity>
+            ) : (
+              <View
+                style={[
+                  styles.profileCard,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}>
+                <Image source={profileImageUrl} style={styles.avatarLarge} />
+                <View style={styles.profileInfo}>
+                  <ThemedText style={styles.profileNameMain}>
+                    {userData?.name || user?.displayName || 'User'}
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.profileEmail, { color: theme.subtext }]}>
+                    {user?.email}
+                  </ThemedText>
+                  {userData?.bio && (
+                    <ThemedText
+                      style={[styles.profileBio, { color: theme.subtext }]}
+                      numberOfLines={2}>
+                      {userData.bio}
+                    </ThemedText>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => router.push('/edit-profile')}
+                    style={[
+                      styles.badgeProfile,
+                      { backgroundColor: theme.accent + '10' },
+                    ]}>
+                    <ThemedText
+                      style={[
+                        styles.badgeTextProfile,
+                        { color: theme.accent },
+                      ]}>
+                      Edit Profile
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            )}
           </View>
 
           {/* Provider Access Section */}
           <View style={styles.section}>
-            {isProvider ? (
-              <TouchableOpacity
-                activeOpacity={0.8}
+            {isProvider && (
+              <View
                 style={[
-                  styles.providerCardPremium,
-                  { backgroundColor: theme.card, borderColor: theme.border },
-                ]}
-                onPress={() => router.push('/(app)/provider-profile')}>
-                <LinearGradient
-                  colors={['#000000', '#333333']}
-                  style={styles.providerIconGradient}>
-                  <MaterialCommunityIcons
-                    name='briefcase-check'
-                    size={24}
-                    color='#FFFFFF'
+                  styles.cardGroup,
+                  {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                    marginBottom: 16,
+                  },
+                ]}>
+                <View style={styles.settingRow}>
+                  <View style={styles.settingLeft}>
+                    <View
+                      style={[
+                        styles.iconBox,
+                        {
+                          backgroundColor: theme.accent + '10',
+                          borderColor: theme.border,
+                        },
+                      ]}>
+                      <Feather
+                        name='activity'
+                        size={18}
+                        color={
+                          providerStatus === 'online'
+                            ? '#4CAF50'
+                            : theme.subtext
+                        }
+                      />
+                    </View>
+                    <View>
+                      <ThemedText style={styles.settingTitle}>
+                        Ready for work?
+                      </ThemedText>
+                      <ThemedText
+                        style={{ fontSize: 12, color: theme.subtext }}>
+                        {providerStatus === 'online'
+                          ? 'You are appearing in searches'
+                          : 'You are currently hidden'}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <Switch
+                    value={providerStatus === 'online'}
+                    onValueChange={async (val) => {
+                      const newStatus = val ? 'online' : 'offline';
+                      setProviderStatus(newStatus);
+                      if (user?.uid) {
+                        try {
+                          await setDoc(
+                            doc(db, 'service_providers', user.uid),
+                            {
+                              availabilityStatus: newStatus,
+                              updatedAt: serverTimestamp(),
+                            },
+                            { merge: true },
+                          );
+                        } catch (e) {
+                          console.error('Failed to update status:', e);
+                        }
+                      }
+                    }}
+                    trackColor={{ false: theme.border, true: '#4CAF50' }}
+                    thumbColor='#fff'
                   />
-                </LinearGradient>
-                <View style={{ flex: 1, marginLeft: 16 }}>
-                  <ThemedText style={styles.providerCardTitle}>
-                    Professional Identity
-                  </ThemedText>
-                  <ThemedText style={{ fontSize: 13, color: theme.subtext }}>
-                    Manage your public service profile
-                  </ThemedText>
                 </View>
-                <Feather name='arrow-right' size={18} color={theme.subtext} />
-              </TouchableOpacity>
-            ) : (
+              </View>
+            )}
+
+            {!isProvider && (
               <TouchableOpacity
                 activeOpacity={0.8}
                 style={[
@@ -327,15 +435,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -1,
   },
-  editCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
-  },
   profileSection: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -344,7 +443,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 24,
     flexDirection: 'row',
-    alignItems: 'center',
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -401,14 +499,14 @@ const styles = StyleSheet.create({
   providerCardPremium: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 18,
-    borderRadius: 22,
-    borderWidth: 1,
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1.5,
     shadowColor: '#2E5BFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
   },
   enrollCardPremium: {
     flexDirection: 'row',

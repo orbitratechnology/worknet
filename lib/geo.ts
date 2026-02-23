@@ -106,7 +106,14 @@ export async function getNearbyProviders(
       );
       const distanceInM = distanceInKm * 1000;
 
-      if (distanceInM <= radiusInMeters) {
+      // Check if the provider is within the customer's search radius
+      // AND if the customer is within the provider's service radius
+      const providerServiceRadiusKm = data.serviceRadius || 25; // Default to 25km if not set
+
+      if (
+        distanceInM <= radiusInMeters &&
+        distanceInKm <= providerServiceRadiusKm
+      ) {
         matchingDocs.push({ ...data, id: doc.id });
       }
     }

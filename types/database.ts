@@ -29,9 +29,11 @@ export interface ServiceProvider {
   name: string;
   title?: string; // e.g. "Professional Plumber"
   bio: string;
+  about?: string;
   nic?: string;
-  professions: string[];
-  categories: string[];
+  primaryProfession: string;
+  secondaryProfessions: string[];
+  category: string;
   tags: string[];
   rating: number;
   reviewCount: number;
@@ -43,13 +45,12 @@ export interface ServiceProvider {
     longitude: number;
     geohash: string;
     homeCity: string;
+    country: string;
     address?: string;
   };
-  coverageArea:
-    | 'Same city only'
-    | 'Nearby cities'
-    | 'District-wide'
-    | 'Island-wide';
+  coverageArea: 'City' | 'Country' | 'Radius';
+  serviceCities?: string[];
+  serviceDistricts?: string[];
   travelWillingness: boolean;
   travelLimitKm?: number;
   serviceRadius: number; // in km
@@ -58,7 +59,8 @@ export interface ServiceProvider {
   contactMethod: 'Call' | 'WhatsApp' | 'In-app';
   imageUrl?: string;
   portfolioUrls?: string[];
-  isAvailable: boolean;
+  workSamples?: string[];
+  availabilityStatus?: 'online' | 'offline';
   isVerified?: boolean;
   emergencyAvailability: boolean;
   pricing: {
