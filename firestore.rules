@@ -1,0 +1,47 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if the document belongs to the signed-in user
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users: Only owner can read/write
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Service Providers: Anyone can read, only owner can write
+    match /service_providers/{providerId} {
+      allow read: if true;
+      allow write: if isOwner(providerId);
+    }
+
+    // Reviews: Anyone can read, only authenticated can write
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Categories: Anyone can read
+    match /categories/{categoryId} {
+      allow read: if true;
+    }
+
+    // Saved Providers: Only owner can read/write
+    match /saved_providers/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Default deny for all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

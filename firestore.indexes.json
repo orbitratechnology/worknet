@@ -1,0 +1,45 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "service_providers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categories", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "rating", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "service_providers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "categories", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "experienceYears", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "service_providers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isAvailable", "order": "ASCENDING" },
+        { "fieldPath": "rating", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "service_providers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isAvailable", "order": "ASCENDING" },
+        { "fieldPath": "experienceYears", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "providerId", "mode": "ASCENDING" },
+        { "fieldPath": "createdAt", "mode": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

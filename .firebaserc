@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "worknet-orbitra",
+    "worknet": "worknet-orbitra"
+  },
+  "targets": {},
+  "etags": {}
+}

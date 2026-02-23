@@ -1,10 +1,11 @@
+import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useColorScheme } from 'react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -15,19 +16,55 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: {
+          position: 'absolute',
+          elevation: 5,
+          backgroundColor: Colors[colorScheme ?? 'light'].background,
+          height: 65,
+          borderTopWidth: 0,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 5,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+        },
       }}>
       <Tabs.Screen
-        name="index"
+        name='index'
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Feather size={24} name='home' color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name='services'
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Services',
+          tabBarIcon: ({ color }) => (
+            <Feather size={24} name='search' color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name='explore'
+        options={{
+          title: 'Map',
+          tabBarIcon: ({ color }) => (
+            <Feather size={24} name='map' color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name='profile'
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => (
+            <Feather size={24} name='user' color={color} />
+          ),
         }}
       />
     </Tabs>

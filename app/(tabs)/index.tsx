@@ -1,98 +1,159 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Categories } from '@/components/ui/categories';
+import { PromoBanner } from '@/components/ui/promo-banner';
+import { ServiceCard } from '@/components/ui/service-card';
+import { TopBar } from '@/components/ui/top-bar';
+import { Colors } from '@/constants/theme';
+import { db } from '@/lib/firebase';
+import { ServiceProvider } from '@/types/database';
+import {
+  collection,
+  limit,
+  onSnapshot,
+  query,
+  where,
+} from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import {
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  useColorScheme,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [nearbyServices, setNearbyServices] = useState<ServiceProvider[]>([]);
+  const [loading, setLoading] = useState(true);
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  useEffect(() => {
+    // Fetch available service providers
+    const q = query(
+      collection(db, 'service_providers'),
+      where('isAvailable', '==', true),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const providers = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as ServiceProvider[];
+        setNearbyServices(providers);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching service providers:', error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const renderHeader = React.useMemo(
+    () => (
+      <View style={styles.headerContent} collapsable={false}>
+        <TopBar />
+        <Categories />
+        <PromoBanner />
+        <View style={styles.nearbyHeader}>
+          <ThemedText style={styles.nearbyTitle} type='subtitle' selectable>
+            Nearby Services
+          </ThemedText>
+          <TouchableOpacity activeOpacity={0.7}>
+            <ThemedText style={[styles.seeAll, { color: theme.accent }]}>
+              See All
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    ),
+    [theme]
+  );
+
+  const renderItem = React.useCallback(
+    ({ item }: { item: ServiceProvider }) => (
+      <ServiceCard
+        id={item.id}
+        name={item.name}
+        category={item.professions ? item.professions[0] : 'General'}
+        rating={item.rating || 0}
+        distance='0.5km' // TODO: Calculate actual distance
+        imageUrl={item.imageUrl || ''}
+      />
+    ),
+    []
+  );
+
+  const keyExtractor = React.useCallback(
+    (item: ServiceProvider) => item.id,
+    []
+  );
+
+  return (
+    <ThemedView style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <FlatList
+          data={nearbyServices}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          numColumns={2}
+          ListHeaderComponent={renderHeader}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          columnWrapperStyle={styles.columnWrapper}
+          contentInsetAdjustmentBehavior='automatic'
+          initialNumToRender={6}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
+        />
+      </SafeAreaView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  headerContent: {
+    flex: 1,
+    paddingTop: 10,
+  },
+  nearbyHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 16,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  nearbyTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    letterSpacing: -0.5,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  seeAll: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    gap: 16,
+  },
+  scrollContent: {
+    paddingBottom: 100,
   },
 });
