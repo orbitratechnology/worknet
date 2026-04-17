@@ -58,10 +58,7 @@ export default function ForgotPasswordScreen() {
         <View style={styles.header}>
           <Pressable
             onPress={() => router.back()}
-            style={({ pressed }) => [
-              styles.backButton,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}>
+            style={({ pressed }) => [styles.backButton, { opacity: 1 }]}>
             <Feather name='arrow-left' size={24} color={theme.text} />
           </Pressable>
         </View>
@@ -123,7 +120,7 @@ export default function ForgotPasswordScreen() {
                 style={({ pressed }) => [
                   styles.resetBtn,
                   { backgroundColor: theme.accent },
-                  (loading || pressed) && { opacity: 0.8 },
+                  loading && { opacity: 0.8 },
                   pressed && { transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={handleResetPassword}
@@ -141,7 +138,6 @@ export default function ForgotPasswordScreen() {
                 style={({ pressed }) => [
                   styles.backToLoginBtn,
                   { borderColor: theme.border },
-                  pressed && { opacity: 0.7 },
                 ]}
                 onPress={() => router.replace('/login')}>
                 <ThemedText

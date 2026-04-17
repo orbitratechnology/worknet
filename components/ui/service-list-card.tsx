@@ -50,7 +50,6 @@ export const ServiceListCard = memo(function ServiceListCard({
       {
         backgroundColor: theme.card,
         borderColor: theme.border,
-        opacity: pressed ? 0.95 : 1,
         transform: [{ scale: pressed ? 0.99 : 1 }],
       },
     ],

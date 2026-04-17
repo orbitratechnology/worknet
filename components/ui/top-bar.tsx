@@ -29,7 +29,7 @@ export function TopBar() {
         </View>
         <View style={styles.leftSection}>
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={1}
             onPress={refreshLocation}
             style={styles.locationSelector}>
             <Feather name='map-pin' size={14} color={theme.accent} />
@@ -47,7 +47,7 @@ export function TopBar() {
 
       <View style={styles.rightSection}>
         <TouchableOpacity
-          activeOpacity={0.7}
+          activeOpacity={1}
           style={[styles.iconButton, { backgroundColor: theme.surface }]}>
           <Feather name='bell' size={20} color={theme.text} />
           <View

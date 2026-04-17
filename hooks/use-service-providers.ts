@@ -27,7 +27,7 @@ export function useServiceProviders(
   const [error, setError] = useState<Error | null>(null);
   const { country } = useLocation();
 
-  useEffect(() => {
+  useEffect(() => { 
     const constraints: QueryConstraint[] = [];
 
     if (options.onlyAvailable) {

@@ -11,7 +11,7 @@ export default ({ config }) => ({
   jsEngine: 'hermes',
   ios: {
     ...config.ios,
-    bundleIdentifier: 'com.orbitratech.worknet',
+    bundleIdentifier: 'com.orbitra.worknet',
     jsEngine: 'jsc',
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -19,7 +19,7 @@ export default ({ config }) => ({
   },
   android: {
     ...config.android,
-    package: 'com.orbitratech.worknet',
+    package: 'com.orbitra.worknet',
     adaptiveIcon: {
       backgroundColor: '#ffffff',
       foregroundImage: './assets/images/icon.png',
@@ -59,7 +59,7 @@ export default ({ config }) => ({
       'expo-splash-screen',
       {
         image: './assets/images/adaptive-icon.png',
-        imageWidth: 200,
+        imageWidth: 100,
         resizeMode: 'contain',
       },
     ],
@@ -73,5 +73,8 @@ export default ({ config }) => ({
     firebaseApiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
     firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
     webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
+    eas: {
+      projectId: '05f25758-d9a3-4897-9f54-327c31f0c7dc',
+    },
   },
 });

@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { AppBottomSheet } from '@/components/ui/app-bottom-sheet';
-import { FilterOptions, FilterSheet } from '@/components/ui/filter-sheet';
+import { MapFilterSheet } from '@/components/ui/map-filter-sheet';
 import { PROBLEMS } from '@/constants/problems';
 import { Colors } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
@@ -24,7 +24,6 @@ import {
   useColorScheme,
 } from 'react-native';
 import MapView, { Callout, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -56,12 +55,7 @@ export default function MapScreen() {
   const [selectedWorkerType, setSelectedWorkerType] = useState<string | null>(
     null,
   );
-  const [filters, setFilters] = useState<FilterOptions>({
-    sortBy: 'Nearest',
-    rating: 'All Ratings',
-    distance: 25,
-    priceRange: 'All',
-  });
+  const [distance, setDistance] = useState(25);
 
   const [mapRegion, setMapRegion] = useState({
     latitude: coords?.latitude || 6.9271,
@@ -89,10 +83,10 @@ export default function MapScreen() {
       };
       setMapRegion(newRegion);
       mapRef.current?.animateToRegion(newRegion, 1000);
-      fetchProviders(coords.latitude, coords.longitude, filters.distance);
+      fetchProviders(coords.latitude, coords.longitude, distance);
     } else {
       // Fetch providers for default region if coords are not available yet
-      fetchProviders(mapRegion.latitude, mapRegion.longitude, filters.distance);
+      fetchProviders(mapRegion.latitude, mapRegion.longitude, distance);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coords]);
@@ -121,16 +115,13 @@ export default function MapScreen() {
     if (problemSlug) {
       const problem = PROBLEMS.find((p) => p.slug === problemSlug);
       if (problem) {
+        const allowedNames = problem.workerTypes?.map(
+          (id) => WORKER_TYPES.find((w) => w.id === id)?.name,
+        );
         result = data.filter(
           (p) =>
-            p.category === problem.category ||
-            p.tags?.includes(problem.slug) ||
-            p.primaryProfession
-              ?.toLowerCase()
-              .includes(problem.category.toLowerCase()) ||
-            p.secondaryProfessions?.some((prof) =>
-              prof.toLowerCase().includes(problem.category.toLowerCase()),
-            ),
+            allowedNames?.includes(p.primaryProfession) ||
+            p.tags?.includes(problem.slug),
         );
       }
     }
@@ -138,23 +129,9 @@ export default function MapScreen() {
     if (workerType) {
       const type = WORKER_TYPES.find((w) => w.name === workerType);
       if (type) {
-        result = result.filter(
-          (p) =>
-            p.primaryProfession
-              ?.toLowerCase()
-              .includes(type.name.toLowerCase()) ||
-            p.secondaryProfessions?.some((prof) =>
-              prof.toLowerCase().includes(type.name.toLowerCase()),
-            ),
+        result = result.filter((p) =>
+          p.primaryProfession?.toLowerCase().includes(type.name.toLowerCase()),
         );
-      }
-    }
-
-    // Apply more filters if needed (rating, etc)
-    if (filters.rating !== 'All' && filters.rating !== 'All Ratings') {
-      const minRating = parseFloat(filters.rating.split(' ')[0]);
-      if (!isNaN(minRating)) {
-        result = result.filter((p) => p.rating >= minRating);
       }
     }
 
@@ -191,7 +168,7 @@ export default function MapScreen() {
         region.latitude,
         region.longitude,
       );
-      if (dist > filters.distance / 10 || dist > 2) {
+      if (dist > distance / 10 || dist > 2) {
         setShowSearchHere(true);
       } else {
         setShowSearchHere(false);
@@ -201,7 +178,7 @@ export default function MapScreen() {
 
   const handleSearchHere = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    fetchProviders(mapRegion.latitude, mapRegion.longitude, filters.distance);
+    fetchProviders(mapRegion.latitude, mapRegion.longitude, distance);
   };
 
   const handleCenterAction = () => {
@@ -214,22 +191,23 @@ export default function MapScreen() {
         longitudeDelta: LONGITUDE_DELTA,
       };
       mapRef.current?.animateToRegion(newRegion, 1000);
-      fetchProviders(coords.latitude, coords.longitude, filters.distance);
+      fetchProviders(coords.latitude, coords.longitude, distance);
     } else {
       refreshLocation();
     }
   };
 
-  const handleApplyFilters = (newFilters: FilterOptions) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setFilters(newFilters);
-    filterBottomSheetRef.current?.dismiss();
-    fetchProviders(
-      mapRegion.latitude,
-      mapRegion.longitude,
-      newFilters.distance,
-    );
-  };
+  const commonWorkerTypes = WORKER_TYPES.filter((w) =>
+    [
+      'Plumber',
+      'Electrician',
+      'Carpenter',
+      'Handyman',
+      'House cleaning',
+      'Car mechanic',
+      'AC repair/service',
+    ].includes(w.name),
+  );
 
   return (
     <ThemedView style={styles.container}>
@@ -312,10 +290,6 @@ export default function MapScreen() {
                     <ThemedText style={styles.calloutRatingText}>
                       {provider.rating.toFixed(1)}
                     </ThemedText>
-                    <ThemedText
-                      style={[styles.calloutReviews, { color: theme.subtext }]}>
-                      ({provider.reviewCount})
-                    </ThemedText>
                   </View>
                   <View
                     style={[
@@ -333,14 +307,13 @@ export default function MapScreen() {
       {/* Floating UI Elements */}
       <SafeAreaView style={styles.floatingContent} pointerEvents='box-none'>
         {/* Top Header/Category Filter */}
-        <Animated.View
-          entering={FadeInUp.duration(600)}
-          style={styles.topContainer}>
+        <View style={styles.topContainer}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryScroll}>
             <TouchableOpacity
+              activeOpacity={1}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 filterBottomSheetRef.current?.present();
@@ -354,17 +327,16 @@ export default function MapScreen() {
               ]}>
               <Feather name='sliders' size={16} color={theme.accent} />
               <ThemedText style={[styles.categoryText, { color: theme.text }]}>
-                Filters {filters.distance}km
+                Filters {distance}km
               </ThemedText>
             </TouchableOpacity>
 
             <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
-            {WORKER_TYPES.slice(0, 5).map((type, index) => (
-              <Animated.View
-                key={type.id}
-                entering={FadeInDown.delay(index * 100).duration(400)}>
+            {commonWorkerTypes.map((type, index) => (
+              <View key={type.id}>
                 <TouchableOpacity
+                  activeOpacity={1}
                   onPress={() => handleWorkerTypeSelect(type.name)}
                   style={[
                     styles.categoryChip,
@@ -398,58 +370,16 @@ export default function MapScreen() {
                     {type.name}
                   </ThemedText>
                 </TouchableOpacity>
-              </Animated.View>
-            ))}
-
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
-            {PROBLEMS.slice(0, 10).map((prob, index) => (
-              <Animated.View
-                key={prob.id}
-                entering={FadeInDown.delay(500 + index * 100).duration(400)}>
-                <TouchableOpacity
-                  onPress={() => handleProblemSelect(prob.slug)}
-                  style={[
-                    styles.categoryChip,
-                    {
-                      backgroundColor:
-                        selectedProblem === prob.slug
-                          ? prob.color || theme.accent
-                          : theme.card,
-                      borderColor: theme.border,
-                    },
-                  ]}>
-                  <MaterialCommunityIcons
-                    name={prob.icon as any}
-                    size={16}
-                    color={
-                      selectedProblem === prob.slug
-                        ? theme.onAccent
-                        : prob.color || theme.accent
-                    }
-                  />
-                  <ThemedText
-                    style={[
-                      styles.categoryText,
-                      {
-                        color:
-                          selectedProblem === prob.slug
-                            ? theme.onAccent
-                            : theme.text,
-                      },
-                    ]}>
-                    {prob.name.split(' / ')[0]}
-                  </ThemedText>
-                </TouchableOpacity>
-              </Animated.View>
+              </View>
             ))}
           </ScrollView>
-        </Animated.View>
+        </View>
 
         {/* Search Here Button */}
         {showSearchHere && (
-          <Animated.View entering={FadeInUp.duration(400)}>
+          <View>
             <TouchableOpacity
+              activeOpacity={1}
               style={[styles.searchHereBtn, { backgroundColor: theme.accent }]}
               onPress={handleSearchHere}>
               {loading ? (
@@ -464,13 +394,12 @@ export default function MapScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </Animated.View>
+          </View>
         )}
 
-        <Animated.View
-          entering={FadeInUp.delay(300).duration(600)}
-          style={styles.bottomActions}>
+        <View style={styles.bottomActions}>
           <TouchableOpacity
+            activeOpacity={1}
             style={[
               styles.actionBtn,
               { backgroundColor: theme.card, borderColor: theme.border },
@@ -482,14 +411,20 @@ export default function MapScreen() {
               color={theme.accent}
             />
           </TouchableOpacity>
-        </Animated.View>
+        </View>
       </SafeAreaView>
 
       <AppBottomSheet ref={filterBottomSheetRef} snapPoints={['65%']}>
-        <FilterSheet
-          onApply={handleApplyFilters}
+        <MapFilterSheet
+          selectedProblem={selectedProblem}
+          selectedWorkerType={selectedWorkerType}
+          onSelectProblem={(slug) => {
+            handleProblemSelect(slug || '');
+          }}
+          onSelectWorkerType={(name) => {
+            handleWorkerTypeSelect(name || '');
+          }}
           onClose={() => filterBottomSheetRef.current?.dismiss()}
-          initialFilters={filters}
         />
       </AppBottomSheet>
     </ThemedView>

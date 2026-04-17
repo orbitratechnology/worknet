@@ -12,7 +12,6 @@ export interface Service {
   id: string;
   providerId: string;
   title: string;
-  category: string;
   description: string;
   experience: number;
   minPrice: number;
@@ -33,12 +32,10 @@ export interface ServiceProvider {
   nic?: string;
   primaryProfession: string;
   secondaryProfessions: string[];
-  category: string;
   tags: string[];
   rating: number;
   reviewCount: number;
   experienceYears: number;
-  skillLevel: 'Beginner' | 'Intermediate' | 'Professional' | 'Expert';
   languages: string[];
   location: {
     latitude: number;
@@ -88,11 +85,4 @@ export interface Review {
   rating: number;
   comment?: string;
   createdAt: any;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  icon: string;
-  slug: string;
 }

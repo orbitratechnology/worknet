@@ -183,14 +183,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle: async () => {
         try {
           const response = await GoogleAuth.signIn();
-          console.log('Google Sign-In Response:', response);
           if (response.type === 'success') {
             const credential = GoogleAuthProvider.credential(
               response.data.idToken,
             );
-            console.log('Google Credential:', credential);
             const cred = await signInWithCredential(auth, credential);
-            console.log('Firebase Credential:', cred);
 
             // Ensure Firestore profile exists
             try {

@@ -17,7 +17,6 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
@@ -82,16 +81,14 @@ export default function LoginScreen() {
             contentInsetAdjustmentBehavior='automatic'>
             {/* Logo Section */}
             <View style={styles.logoSection}>
-              <Animated.View
-                entering={FadeInUp.delay(200).duration(800)}
-                style={styles.logoTile}>
+              <View style={styles.logoTile}>
                 <Image
                   source={require('@/assets/images/adaptive-icon.png')}
                   style={styles.logoImage}
                   contentFit='contain'
                 />
-              </Animated.View>
-              <Animated.View entering={FadeInDown.delay(400).duration(600)}>
+              </View>
+              <View>
                 <ThemedText style={styles.welcomeTitle} type='title'>
                   Welcome Back
                 </ThemedText>
@@ -99,13 +96,11 @@ export default function LoginScreen() {
                   style={[styles.welcomeSubtitle, { color: theme.subtext }]}>
                   Connecting you with trusted pros across Sri Lanka.
                 </ThemedText>
-              </Animated.View>
+              </View>
             </View>
 
             {/* Form */}
-            <Animated.View
-              entering={FadeInDown.delay(600).duration(600)}
-              style={styles.form}>
+            <View style={styles.form}>
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label} type='defaultSemiBold'>
                   Email
@@ -149,10 +144,7 @@ export default function LoginScreen() {
                     secureTextEntry={!showPassword}
                   />
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.eyeIcon,
-                      { opacity: pressed ? 0.6 : 1 },
-                    ]}
+                    style={styles.eyeIcon}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setShowPassword(!showPassword);
@@ -167,10 +159,7 @@ export default function LoginScreen() {
               </View>
 
               <Pressable
-                style={({ pressed }) => [
-                  styles.forgotBtn,
-                  { opacity: pressed ? 0.6 : 1 },
-                ]}
+                style={styles.forgotBtn}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push('/forgot-password');
@@ -195,7 +184,6 @@ export default function LoginScreen() {
                 style={({ pressed }) => [
                   styles.loginBtn,
                   { backgroundColor: theme.accent },
-                  (loading || pressed) && { opacity: 0.8 },
                   pressed && { transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={handleLogin}
@@ -206,7 +194,7 @@ export default function LoginScreen() {
                   {loading ? 'Logging in...' : 'Log in'}
                 </ThemedText>
               </Pressable>
-            </Animated.View>
+            </View>
 
             {/* Divider */}
             <View style={styles.dividerContainer}>
@@ -228,7 +216,6 @@ export default function LoginScreen() {
                 style={({ pressed }) => [
                   styles.socialBtn,
                   { backgroundColor: theme.card, borderColor: theme.border },
-                  (loading || pressed) && { opacity: 0.8 },
                   pressed && { transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={handleGoogleLogin}
@@ -239,11 +226,11 @@ export default function LoginScreen() {
                 </ThemedText>
               </Pressable>
 
-              <Pressable
+              {/* <Pressable
                 style={({ pressed }) => [
                   styles.socialBtn,
                   { backgroundColor: theme.accent, borderColor: theme.accent },
-                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                  pressed && { transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={() =>
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -254,7 +241,7 @@ export default function LoginScreen() {
                   type='defaultSemiBold'>
                   Continue with Apple
                 </ThemedText>
-              </Pressable>
+              </Pressable> */}
             </View>
 
             {/* Footer */}
@@ -266,8 +253,7 @@ export default function LoginScreen() {
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push('/register');
-                }}
-                style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
+                }}>
                 <ThemedText
                   style={[styles.signUpText, { color: theme.accent }]}
                   type='defaultSemiBold'>

@@ -35,7 +35,7 @@ export function PromoBanner() {
           </ThemedText>
         </View>
         <TouchableOpacity
-          activeOpacity={0.8}
+          activeOpacity={1}
           style={[styles.button, { backgroundColor: '#FFFFFF' }]}>
           <Feather name='arrow-right' size={20} color='#000000' />
         </TouchableOpacity>

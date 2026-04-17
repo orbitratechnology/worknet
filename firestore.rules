@@ -12,29 +12,37 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Users: Only owner can read/write
+    // Users: Private profile data
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isAuthenticated(); // Allow other users to see basic info (names/photos)
+      allow write: if isOwner(userId);
+
+      // User sessions: Strictly private
+      match /sessions/{sessionId} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
-    // Service Providers: Anyone can read, only owner can write
+    // Service Providers: Public profiles
     match /service_providers/{providerId} {
       allow read: if true;
       allow write: if isOwner(providerId);
     }
 
-    // Reviews: Anyone can read, only authenticated can write
+    // Reviews: Anyone can read, only authenticated can write once (implementation logic should be in functions but rules provide base)
     match /reviews/{reviewId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false; // Reviews should generally be immutable or handled via support
     }
 
-    // Categories: Anyone can read
+    // Categories: Read-only for everyone
     match /categories/{categoryId} {
       allow read: if true;
+      allow write: if false;
     }
 
-    // Saved Providers: Only owner can read/write
+    // Saved Providers: Private to user
     match /saved_providers/{userId} {
       allow read, write: if isOwner(userId);
     }

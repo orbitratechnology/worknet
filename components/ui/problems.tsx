@@ -48,7 +48,7 @@ export function Problems() {
         {PROBLEMS.map((prob) => (
           <TouchableOpacity
             key={prob.id}
-            activeOpacity={0.7}
+            activeOpacity={1}
             style={styles.categoryItem}
             onPress={() => handleProblemPress(prob.slug)}>
             <View

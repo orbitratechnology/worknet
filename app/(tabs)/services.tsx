@@ -5,6 +5,7 @@ import { FilterOptions, FilterSheet } from '@/components/ui/filter-sheet';
 import { ServiceListCard } from '@/components/ui/service-list-card';
 import { PROBLEMS, Problem } from '@/constants/problems';
 import { Colors } from '@/constants/theme';
+import { WORKER_TYPES } from '@/constants/worker-types';
 import { useLocation } from '@/context/location';
 import { db } from '@/lib/firebase';
 import { calculateDistance, getNearbyProviders } from '@/lib/geo';
@@ -14,11 +15,14 @@ import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams } from 'expo-router';
 import {
+  QueryConstraint,
+  QueryDocumentSnapshot,
   collection,
+  getDocs,
   limit,
-  onSnapshot,
   orderBy,
   query,
+  startAfter,
   where,
 } from 'firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -34,11 +38,6 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import Animated, {
-  FadeInDown,
-  FadeInUp,
-  Layout,
-} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const FILTER_CHIPS = [
@@ -78,10 +77,17 @@ export default function ServicesScreen() {
     [],
   );
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(
+    null,
+  );
+  const [hasMore, setHasMore] = useState(true);
   const [advancedFilters, setAdvancedFilters] = useState<FilterOptions | null>(
     null,
   );
   const { coords, country } = useLocation();
+
+  const PAGE_SIZE = 15;
 
   useEffect(() => {
     // Update category or problem if they change in params
@@ -93,7 +99,6 @@ export default function ServicesScreen() {
       const prob = PROBLEMS.find((p) => p.slug === initialProblem);
       if (prob) {
         setSelectedProblem(prob);
-        setSelectedCategory(prob.category);
       }
     }
     if (initialSearch) {
@@ -102,15 +107,19 @@ export default function ServicesScreen() {
   }, [initialCategory, initialProblem, initialSearch]);
 
   useEffect(() => {
-    let unsubscribe: () => void = () => {};
-
     async function setupQuery() {
       setLoading(true);
+      setLastVisible(null);
+      setHasMore(true);
 
       // 1. Check if Nearest chip or distance filter is active
       if (activeFilter === 'Nearest' && coords) {
         try {
-          const radius = advancedFilters?.distance || 25;
+          // "Nearest" now only sorts, not filters by distance range
+          // To implement sorting by nearest in Firestore, we use geohashes
+          // For now, we fetch a larger set and sort locally since Firestore doesn't support distance sort directly
+          // We can use a large radius (e.g. 500km) to simulate "no distance filter" but still use geohashes
+          const radius = 500;
 
           const results = await getNearbyProviders(
             coords.latitude,
@@ -118,59 +127,40 @@ export default function ServicesScreen() {
             radius,
           );
 
-          // Additional server-side filters (manual filter on results)
-          let filteredResults = results as ServiceProvider[];
-
-          if (selectedCategory) {
-            filteredResults = filteredResults.filter(
-              (p) => p.category === selectedCategory,
-            );
-          }
+          // Sort by actual distance
+          let sortedResults = (
+            results as (ServiceProvider & { distance: number })[]
+          ).sort((a, b) => a.distance - b.distance);
 
           if (selectedProblem) {
-            // Filter by problem slug in tags or keywords
-            filteredResults = filteredResults.filter(
+            const allowedNames = selectedProblem.workerTypes?.map(
+              (id) => WORKER_TYPES.find((w) => w.id === id)?.name,
+            );
+            sortedResults = sortedResults.filter(
               (p) =>
-                p.tags?.includes(selectedProblem.slug) ||
-                p.primaryProfession
-                  ?.toLowerCase()
-                  .includes(selectedProblem.category.toLowerCase()) ||
-                p.secondaryProfessions?.some((prof) =>
-                  prof
-                    .toLowerCase()
-                    .includes(selectedProblem.category.toLowerCase()),
-                ),
+                allowedNames?.includes(p.primaryProfession) ||
+                p.tags?.includes(selectedProblem.slug),
             );
           }
 
-          // Apply coverage area logic
-          // Since we moved to a radius-based approach, getNearbyProviders already filters by distance (radius)
-          // and checks if the customer is within the provider's serviceRadius.
-
-          setServices(filteredResults);
+          setServices(sortedResults);
           setLoading(false);
-          return; // Skip normal onSnapshot
+          setHasMore(false); // getNearbyProviders currently fetches all at once
+          return;
         } catch (error) {
           console.error('Error in nearby search:', error);
         }
       }
 
-      // 2. Normal Query logic (Real-time)
-      let q = query(collection(db, 'service_providers'), limit(50));
-
-      // Category/Problem filter
-      if (selectedProblem) {
-        q = query(q, where('category', '==', selectedProblem.category));
-      } else if (selectedCategory) {
-        q = query(q, where('category', '==', selectedCategory));
-      }
+      // 2. Normal Query logic (Real-time with pagination)
+      let queryConstraints: QueryConstraint[] = [limit(PAGE_SIZE)];
 
       // Combine activeFilter (chips) and advancedFilters
       if (activeFilter === 'Available Now') {
-        q = query(q, where('availabilityStatus', '==', 'online'));
+        queryConstraints.push(where('availabilityStatus', '==', 'online'));
       }
 
-      // Apply Sorting and Rating logic together to avoid duplicate/invalid orderBy
+      // Apply Sorting and Rating logic together
       const ratingFilterValue = advancedFilters?.rating || '';
       const minRating =
         ratingFilterValue && ratingFilterValue !== 'All Ratings'
@@ -178,57 +168,52 @@ export default function ServicesScreen() {
           : null;
 
       if (minRating !== null && !isNaN(minRating)) {
-        q = query(q, where('rating', '>=', minRating));
-        q = query(q, orderBy('rating', 'desc'));
-
-        const currentSort = advancedFilters?.sortBy || activeFilter;
-        if (currentSort === 'Most Experienced') {
-          q = query(q, orderBy('experienceYears', 'desc'));
-        }
+        queryConstraints.push(where('rating', '>=', minRating));
+        // Firestore requires orderBy to be on the same field as where for range filters
+        queryConstraints.push(orderBy('rating', 'desc'));
+        queryConstraints.push(orderBy('createdAt', 'desc'));
       } else {
         const currentSort = advancedFilters?.sortBy || activeFilter;
         if (currentSort === 'Top Rated' || currentSort === 'Highest Rating') {
-          q = query(q, orderBy('rating', 'desc'));
+          queryConstraints.push(orderBy('rating', 'desc'));
+          queryConstraints.push(orderBy('createdAt', 'desc'));
         } else if (currentSort === 'Most Experienced') {
-          q = query(q, orderBy('experienceYears', 'desc'));
+          queryConstraints.push(orderBy('experienceYears', 'desc'));
+          queryConstraints.push(orderBy('createdAt', 'desc'));
+        } else {
+          // Default sorting
+          queryConstraints.push(orderBy('createdAt', 'desc'));
         }
       }
 
-      unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const providers = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as ServiceProvider[];
+      const q = query(collection(db, 'service_providers'), ...queryConstraints);
 
-          let filtered = providers;
-          if (selectedProblem) {
-            filtered = providers.filter(
-              (p) =>
-                p.tags?.includes(selectedProblem.slug) ||
-                p.category === selectedProblem.category,
-            );
-          }
+      const querySnapshot = await getDocs(q);
+      const providers = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as ServiceProvider[];
 
-          // Apply coverage area logic for normal query
-          // Since we moved to a radius-based approach, we don't filter by 'Country' anymore here.
-          // The actual distance filtering should happen via getNearbyProviders or client-side distance checks.
-          // For this general query, we just return the data.
+      setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1] || null);
+      setHasMore(querySnapshot.docs.length === PAGE_SIZE);
 
-          setServices(filtered);
-          setLoading(false);
-        },
-        (error) => {
-          console.error('Error fetching services:', error);
-          setLoading(false);
-        },
-      );
+      let filtered = providers;
+      if (selectedProblem) {
+        const allowedNames = selectedProblem.workerTypes?.map(
+          (id) => WORKER_TYPES.find((w) => w.id === id)?.name,
+        );
+        filtered = providers.filter(
+          (p) =>
+            allowedNames?.includes(p.primaryProfession) ||
+            p.tags?.includes(selectedProblem.slug),
+        );
+      }
+
+      setServices(filtered);
+      setLoading(false);
     }
 
     setupQuery();
-
-    return () => unsubscribe();
   }, [
     activeFilter,
     advancedFilters,
@@ -237,6 +222,76 @@ export default function ServicesScreen() {
     coords,
     country,
   ]);
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore || !lastVisible || activeFilter === 'Nearest')
+      return;
+
+    setLoadingMore(true);
+    try {
+      let queryConstraints: QueryConstraint[] = [
+        startAfter(lastVisible),
+        limit(PAGE_SIZE),
+      ];
+
+      // Same logic as setupQuery for pagination
+      if (activeFilter === 'Available Now') {
+        queryConstraints.push(where('availabilityStatus', '==', 'online'));
+      }
+
+      const ratingFilterValue = advancedFilters?.rating || '';
+      const minRating =
+        ratingFilterValue && ratingFilterValue !== 'All Ratings'
+          ? parseFloat(ratingFilterValue.split(' ')[0])
+          : null;
+
+      if (minRating !== null && !isNaN(minRating)) {
+        queryConstraints.push(where('rating', '>=', minRating));
+        queryConstraints.push(orderBy('rating', 'desc'));
+        queryConstraints.push(orderBy('createdAt', 'desc'));
+      } else {
+        const currentSort = advancedFilters?.sortBy || activeFilter;
+        if (currentSort === 'Top Rated' || currentSort === 'Highest Rating') {
+          queryConstraints.push(orderBy('rating', 'desc'));
+          queryConstraints.push(orderBy('createdAt', 'desc'));
+        } else if (currentSort === 'Most Experienced') {
+          queryConstraints.push(orderBy('experienceYears', 'desc'));
+          queryConstraints.push(orderBy('createdAt', 'desc'));
+        } else {
+          queryConstraints.push(orderBy('createdAt', 'desc'));
+        }
+      }
+
+      const q = query(collection(db, 'service_providers'), ...queryConstraints);
+
+      const querySnapshot = await getDocs(q);
+      const providers = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as ServiceProvider[];
+
+      setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1] || null);
+      setHasMore(querySnapshot.docs.length === PAGE_SIZE);
+
+      let filtered = providers;
+      if (selectedProblem) {
+        const allowedNames = selectedProblem.workerTypes?.map(
+          (id) => WORKER_TYPES.find((w) => w.id === id)?.name,
+        );
+        filtered = providers.filter(
+          (p) =>
+            allowedNames?.includes(p.primaryProfession) ||
+            p.tags?.includes(selectedProblem.slug),
+        );
+      }
+
+      setServices((prev) => [...prev, ...filtered]);
+    } catch (error) {
+      console.error('Error loading more:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Client-side search
   useEffect(() => {
@@ -251,10 +306,6 @@ export default function ServicesScreen() {
           (s.title && s.title.toLowerCase().includes(lowerSearch)) ||
           (s.primaryProfession &&
             s.primaryProfession.toLowerCase().includes(lowerSearch)) ||
-          (s.secondaryProfessions &&
-            s.secondaryProfessions.some((p) =>
-              p.toLowerCase().includes(lowerSearch),
-            )) ||
           (s.tags &&
             s.tags.some((t) => t.toLowerCase().includes(lowerSearch))) ||
           (s.bio && s.bio.toLowerCase().includes(lowerSearch)),
@@ -301,10 +352,16 @@ export default function ServicesScreen() {
     bottomSheetRef.current?.present();
   }, []);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 2000);
+    // The setupQuery in useEffect triggers when these deps change.
+    // If we want a true refresh, we can toggle or just force it.
+    // For now, let's just trigger a re-run of the nearest logic if active
+    // or just wait for the effect to finish if we add a refresh trigger.
+    // For simplicity, let's just re-set the state to trigger the effect.
+    setActiveFilter((prev) => (prev === 'Nearest' ? 'Nearest' : prev));
+    setRefreshing(false);
   }, []);
 
   const renderServiceItem = useCallback(
@@ -321,9 +378,7 @@ export default function ServicesScreen() {
       }
 
       return (
-        <Animated.View
-          // entering={FadeInDown.delay(index * 100).duration(500)}
-          layout={Layout.springify()}>
+        <View>
           <ServiceListCard
             id={item.id}
             name={item.name}
@@ -339,7 +394,7 @@ export default function ServicesScreen() {
             imageUrl={item.imageUrl}
             availabilityStatus={item.availabilityStatus}
           />
-        </Animated.View>
+        </View>
       );
     },
     [coords],
@@ -364,7 +419,7 @@ export default function ServicesScreen() {
     <ThemedView style={[styles.container]}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* Search Header */}
-        <Animated.View entering={FadeInUp.duration(600)} style={styles.header}>
+        <View style={styles.header}>
           <View
             style={[
               styles.searchContainer,
@@ -384,25 +439,20 @@ export default function ServicesScreen() {
               </TouchableOpacity>
             )}
           </View>
-        </Animated.View>
+        </View>
 
         {/* Rapid Problem Switcher */}
-        <Animated.View
-          entering={FadeInUp.delay(100).duration(600)}
-          style={styles.problemSwitcher}>
+        <View style={styles.problemSwitcher}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.problemScroll}>
             {PROBLEMS.slice(0, 10).map((prob, index) => (
-              <Animated.View
-                key={prob.id}
-                entering={FadeInDown.delay(index * 100 + 200).duration(400)}>
+              <View key={prob.id}>
                 <TouchableOpacity
                   onPress={() => {
                     Haptics.selectionAsync();
                     setSelectedProblem(prob);
-                    setSelectedCategory(prob.category);
                   }}
                   style={[
                     styles.problemMiniChip,
@@ -436,15 +486,13 @@ export default function ServicesScreen() {
                     {prob.name.split(' / ')[0]}
                   </ThemedText>
                 </TouchableOpacity>
-              </Animated.View>
+              </View>
             ))}
           </ScrollView>
-        </Animated.View>
+        </View>
 
         {/* Filter Chips */}
-        <Animated.View
-          entering={FadeInUp.delay(200).duration(600)}
-          style={styles.filterWrapper}>
+        <View style={styles.filterWrapper}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -494,7 +542,7 @@ export default function ServicesScreen() {
 
             {/* Selected Problem Chip */}
             {selectedProblem && (
-              <Animated.View entering={FadeInDown.duration(300)}>
+              <View>
                 <TouchableOpacity
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -526,12 +574,12 @@ export default function ServicesScreen() {
                     style={{ marginLeft: 6 }}
                   />
                 </TouchableOpacity>
-              </Animated.View>
+              </View>
             )}
 
             {/* Selected Category Chip (only if no problem) */}
             {selectedCategory && !selectedProblem && (
-              <Animated.View entering={FadeInDown.duration(300)}>
+              <View>
                 <TouchableOpacity
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -555,7 +603,7 @@ export default function ServicesScreen() {
                     style={{ marginLeft: 6, color: theme.onAccent }}
                   />
                 </TouchableOpacity>
-              </Animated.View>
+              </View>
             )}
 
             {/* Basic Filter Chips */}
@@ -587,7 +635,7 @@ export default function ServicesScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </Animated.View>
+        </View>
 
         {/* Services List */}
         {loading ? (
@@ -611,6 +659,15 @@ export default function ServicesScreen() {
                 onRefresh={onRefresh}
                 tintColor={theme.accent}
               />
+            }
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={{ paddingVertical: 20 }}>
+                  <ActivityIndicator size='small' color={theme.accent} />
+                </View>
+              ) : null
             }
             ListEmptyComponent={listEmptyComponent}
           />

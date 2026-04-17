@@ -152,7 +152,7 @@ export default function ProfileScreen() {
           <View style={styles.profileSection}>
             {isProvider ? (
               <TouchableOpacity
-                activeOpacity={0.8}
+                activeOpacity={1}
                 onPress={() => router.push('/(app)/provider-profile')}
                 style={[
                   styles.providerCardPremium,
@@ -187,9 +187,6 @@ export default function ProfileScreen() {
                     />
                     <ThemedText style={{ fontSize: 13, fontWeight: '600' }}>
                       {providerData?.rating?.toFixed(1) || '5.0'}
-                    </ThemedText>
-                    <ThemedText style={{ fontSize: 13, color: theme.subtext }}>
-                      ({providerData?.reviewCount || 0} reviews)
                     </ThemedText>
                   </View>
                 </View>
@@ -309,7 +306,7 @@ export default function ProfileScreen() {
 
             {!isProvider && (
               <TouchableOpacity
-                activeOpacity={0.8}
+                activeOpacity={1}
                 style={[
                   styles.enrollCardPremium,
                   {

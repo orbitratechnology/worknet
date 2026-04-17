@@ -17,7 +17,6 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
@@ -92,10 +91,7 @@ export default function RegisterScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.back();
             }}
-            style={({ pressed }) => [
-              styles.backBtn,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}>
+            style={({ pressed }) => [styles.backBtn, { opacity: 1 }]}>
             <Feather name='chevron-left' size={28} color={theme.text} />
           </Pressable>
           <ThemedText style={styles.headerTitle} type='defaultSemiBold'>
@@ -111,32 +107,26 @@ export default function RegisterScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
             contentInsetAdjustmentBehavior='automatic'>
-            <Animated.View
-              entering={FadeInUp.delay(200).duration(800)}
-              style={styles.logoSection}>
+            <View style={styles.logoSection}>
               <Image
                 source={require('@/assets/images/adaptive-icon.png')}
                 style={styles.logo}
                 contentFit='contain'
               />
-            </Animated.View>
+            </View>
 
             {/* Title Section */}
-            <Animated.View
-              entering={FadeInDown.delay(400).duration(600)}
-              style={styles.titleSection}>
+            <View style={styles.titleSection}>
               <ThemedText style={styles.title} type='title'>
                 Create Account
               </ThemedText>
               <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
                 Join Worknet to find trusted help or earn money in Sri Lanka.
               </ThemedText>
-            </Animated.View>
+            </View>
 
             {/* Form */}
-            <Animated.View
-              entering={FadeInDown.delay(600).duration(600)}
-              style={styles.form}>
+            <View style={styles.form}>
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label} type='defaultSemiBold'>
                   Full Name
@@ -216,10 +206,7 @@ export default function RegisterScreen() {
                     secureTextEntry={!showPassword}
                   />
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.eyeIcon,
-                      { opacity: pressed ? 0.6 : 1 },
-                    ]}
+                    style={({ pressed }) => [styles.eyeIcon, { opacity: 1 }]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setShowPassword(!showPassword);
@@ -254,10 +241,7 @@ export default function RegisterScreen() {
                     secureTextEntry={!showConfirmPassword}
                   />
                   <Pressable
-                    style={({ pressed }) => [
-                      styles.eyeIcon,
-                      { opacity: pressed ? 0.6 : 1 },
-                    ]}
+                    style={({ pressed }) => [styles.eyeIcon, { opacity: 1 }]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setShowConfirmPassword(!showConfirmPassword);
@@ -285,7 +269,7 @@ export default function RegisterScreen() {
                 style={({ pressed }) => [
                   styles.createBtn,
                   { backgroundColor: theme.accent },
-                  (loading || pressed) && { opacity: 0.8 },
+                  loading && { opacity: 0.8 },
                   pressed && { transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={handleRegister}
@@ -296,7 +280,7 @@ export default function RegisterScreen() {
                   {loading ? 'Creating Account...' : 'Create Account'}
                 </ThemedText>
               </Pressable>
-            </Animated.View>
+            </View>
 
             {/* Divider */}
             <View style={styles.dividerContainer}>
@@ -318,7 +302,7 @@ export default function RegisterScreen() {
                 style={({ pressed }) => [
                   styles.socialSquare,
                   { backgroundColor: theme.card, borderColor: theme.border },
-                  (loading || pressed) && { opacity: 0.8 },
+                  loading && { opacity: 0.8 },
                   pressed && { transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={handleGoogleRegister}
@@ -335,7 +319,7 @@ export default function RegisterScreen() {
                 style={({ pressed }) => [
                   styles.socialSquare,
                   { backgroundColor: theme.accent, borderColor: theme.accent },
-                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                  pressed && { transform: [{ scale: 0.98 }] },
                 ]}
                 onPress={() =>
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -359,7 +343,7 @@ export default function RegisterScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push('/login');
                 }}
-                style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
+                style={({ pressed }) => [{ opacity: 1 }]}>
                 <ThemedText
                   style={[styles.logInText, { color: theme.accent }]}
                   type='defaultSemiBold'>

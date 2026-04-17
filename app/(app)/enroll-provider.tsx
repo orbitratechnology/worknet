@@ -1,6 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { CATEGORIES } from '@/constants/categories';
 import { Colors } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
 import { useAuth } from '@/context/auth';
@@ -31,12 +30,6 @@ import {
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const SKILL_LEVELS: ServiceProvider['skillLevel'][] = [
-  'Beginner',
-  'Intermediate',
-  'Professional',
-  'Expert',
-];
 const EXPERIENCE_YEARS = ['0–1', '1–3', '3–5', '5–10', '10+'];
 
 export default function EnrollProviderScreen() {
@@ -66,10 +59,8 @@ export default function EnrollProviderScreen() {
     whatsappNumber: '',
     primaryProfession: '',
     secondaryProfessions: '',
-    category: '',
     tags: '',
     experienceYears: '0–1',
-    skillLevel: 'Beginner' as any,
     homeCity: '',
     country: '',
     coverageArea: 'Radius' as any,
@@ -119,10 +110,8 @@ export default function EnrollProviderScreen() {
             secondaryProfessions: Array.isArray(data.secondaryProfessions)
               ? data.secondaryProfessions.join(', ')
               : '',
-            category: data.category || '',
             tags: Array.isArray(data.tags) ? data.tags.join(', ') : '',
             experienceYears: data.experienceYears?.toString() || '0–1',
-            skillLevel: data.skillLevel || 'Beginner',
             homeCity: data.location?.homeCity || '',
             country: data.location?.country || '',
             coverageArea: data.coverageArea || 'Radius',
@@ -320,7 +309,6 @@ export default function EnrollProviderScreen() {
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean),
-        category: formData.category,
         tags: formData.tags
           .split(',')
           .map((s) => s.trim())
@@ -328,7 +316,6 @@ export default function EnrollProviderScreen() {
         rating: stats.rating,
         reviewCount: stats.reviewCount,
         experienceYears: parseInt(formData.experienceYears) || 0,
-        skillLevel: formData.skillLevel,
         languages: formData.languages.split(',').map((s) => s.trim()),
         location: {
           latitude: locationState?.latitude || 0,
@@ -389,11 +376,6 @@ export default function EnrollProviderScreen() {
     isSelected: boolean,
     onSelect: () => void,
   ) => {
-    const categoryInfo = CATEGORIES.find(
-      (c) => c.slug.toLowerCase() === label.toLowerCase(),
-    );
-    const iconColor = categoryInfo ? categoryInfo.color : theme.accent;
-
     return (
       <TouchableOpacity
         key={label}
@@ -401,8 +383,8 @@ export default function EnrollProviderScreen() {
         style={[
           styles.chip,
           {
-            backgroundColor: isSelected ? iconColor : theme.card,
-            borderColor: isSelected ? iconColor : theme.border,
+            backgroundColor: isSelected ? theme.accent : theme.card,
+            borderColor: isSelected ? theme.accent : theme.border,
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 16,
@@ -410,13 +392,6 @@ export default function EnrollProviderScreen() {
             gap: 10,
           },
         ]}>
-        {categoryInfo && (
-          <MaterialCommunityIcons
-            name={categoryInfo.icon as any}
-            size={18}
-            color={isSelected ? theme.onAccent : iconColor}
-          />
-        )}
         <ThemedText
           style={[
             styles.chipText,
@@ -721,17 +696,6 @@ export default function EnrollProviderScreen() {
                 {EXPERIENCE_YEARS.map((year) =>
                   renderOption(year, formData.experienceYears === year, () =>
                     setFormData({ ...formData, experienceYears: year }),
-                  ),
-                )}
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Skill Level</ThemedText>
-              <View style={styles.chipGrid}>
-                {SKILL_LEVELS.map((level) =>
-                  renderOption(level, formData.skillLevel === level, () =>
-                    setFormData({ ...formData, skillLevel: level }),
                   ),
                 )}
               </View>
@@ -1093,11 +1057,10 @@ export default function EnrollProviderScreen() {
         <ProfessionPickerModal
           visible={professionModalVisible}
           onClose={() => setProfessionModalVisible(false)}
-          onSelect={(profession, category) => {
+          onSelect={(profession) => {
             setFormData({
               ...formData,
               primaryProfession: profession,
-              category: category,
             });
             setProfessionModalVisible(false);
           }}
@@ -1199,7 +1162,7 @@ function ProfessionPickerModal({
 }: {
   visible: boolean;
   onClose: () => void;
-  onSelect: (profession: string, category: string) => void;
+  onSelect: (profession: string) => void;
   theme: any;
   currentProfession: string;
 }) {
@@ -1207,10 +1170,8 @@ function ProfessionPickerModal({
   const [search, setSearch] = useState('');
 
   // Show all workers but filter by search if present
-  const workersToShow = WORKER_TYPES.filter(
-    (w) =>
-      w.name.toLowerCase().includes(search.toLowerCase()) ||
-      w.category.toLowerCase().includes(search.toLowerCase()),
+  const workersToShow = WORKER_TYPES.filter((w) =>
+    w.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   const selectedWorker = WORKER_TYPES.find((w) => w.name === currentProfession);
@@ -1364,12 +1325,12 @@ function ProfessionItem({
 }: {
   worker: any;
   theme: any;
-  onSelect: (profession: string, category: string) => void;
+  onSelect: (profession: string) => void;
   isSelected?: boolean;
 }) {
   return (
     <TouchableOpacity
-      onPress={() => onSelect(worker.name, worker.category)}
+      onPress={() => onSelect(worker.name)}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -1412,9 +1373,7 @@ function ProfessionItem({
             color: isSelected ? theme.accent : theme.subtext,
             textTransform: 'capitalize',
             marginTop: 4,
-          }}>
-          {worker.category}
-        </ThemedText>
+          }}></ThemedText>
       </View>
       {isSelected ? (
         <Feather name='check-circle' size={24} color={theme.accent} />

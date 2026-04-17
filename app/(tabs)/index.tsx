@@ -16,7 +16,6 @@ import React from 'react';
 import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 // ... (existing code, I'll just replace the relevant parts)
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
@@ -38,9 +37,7 @@ export default function HomeScreen() {
         <TopBar />
 
         {/* Search Call to Action */}
-        <Animated.View
-          entering={FadeInUp.delay(200).duration(600)}
-          style={styles.searchContainer}>
+        <View style={styles.searchContainer}>
           <HapticPressable
             onPress={handleSearchPress}
             style={({ pressed }) => [
@@ -48,7 +45,7 @@ export default function HomeScreen() {
               {
                 backgroundColor: theme.surface,
                 borderColor: theme.border,
-                opacity: pressed ? 0.9 : 1,
+                opacity: 1,
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               },
             ]}>
@@ -64,21 +61,19 @@ export default function HomeScreen() {
               <Feather name='sliders' size={14} color={theme.accent} />
             </View>
           </HapticPressable>
-        </Animated.View>
+        </View>
 
-        <Animated.View entering={FadeInUp.delay(400).duration(600)}>
+        <View>
           <Problems />
-        </Animated.View>
+        </View>
 
         {/* <PromoBanner /> */}
-        <Animated.View
-          entering={FadeInDown.delay(600).duration(600)}
-          style={styles.nearbyHeader}>
+        <View style={styles.nearbyHeader}>
           <ThemedText style={styles.nearbyTitle} type='subtitle' selectable>
             Nearby
           </ThemedText>
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={1}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push('/(tabs)/services');
@@ -87,7 +82,7 @@ export default function HomeScreen() {
               See All
             </ThemedText>
           </TouchableOpacity>
-        </Animated.View>
+        </View>
       </View>
     ),
     [theme, router, handleSearchPress],
@@ -107,9 +102,7 @@ export default function HomeScreen() {
       }
 
       return (
-        <Animated.View
-          style={{ flex: 1, maxWidth: '48%' }}
-          entering={FadeInDown.delay(700 + index * 100).duration(600)}>
+        <View style={{ flex: 1, maxWidth: '48%' }}>
           <ServiceCard
             id={item.id}
             name={item.name}
@@ -125,7 +118,7 @@ export default function HomeScreen() {
                 : undefined
             }
           />
-        </Animated.View>
+        </View>
       );
     },
     [coords],

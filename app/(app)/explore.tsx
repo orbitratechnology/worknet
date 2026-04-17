@@ -16,11 +16,6 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import Animated, {
-  FadeInDown,
-  FadeInUp,
-  Layout,
-} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Tab = 'problems' | 'workers';
@@ -36,18 +31,10 @@ export default function ExploreScreen() {
     const query = searchQuery.toLowerCase().trim();
     if (activeTab === 'problems') {
       if (!query) return PROBLEMS;
-      return PROBLEMS.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query) ||
-          p.category.toLowerCase().includes(query)
-      );
+      return PROBLEMS.filter((p) => p.name.toLowerCase().includes(query));
     } else {
       if (!query) return WORKER_TYPES;
-      return WORKER_TYPES.filter(
-        (w) =>
-          w.name.toLowerCase().includes(query) ||
-          w.category.toLowerCase().includes(query)
-      );
+      return WORKER_TYPES.filter((w) => w.name.toLowerCase().includes(query));
     }
   }, [activeTab, searchQuery]);
 
@@ -61,17 +48,15 @@ export default function ExploreScreen() {
     } else {
       router.push({
         pathname: '/(tabs)/services',
-        params: { category: item.category, searchText: item.name },
+        params: { category: item.category || 'other', searchText: item.name },
       });
     }
   };
 
   const renderItem = ({ item, index }: { item: any; index: number }) => (
-    <Animated.View
-      entering={FadeInDown.delay(index * 50).duration(400)}
-      layout={Layout.springify()}>
+    <View>
       <TouchableOpacity
-        activeOpacity={0.7}
+        activeOpacity={1}
         onPress={() => handleItemPress(item)}
         style={[
           styles.card,
@@ -97,19 +82,21 @@ export default function ExploreScreen() {
             {item.name}
           </ThemedText>
           <ThemedText style={[styles.categoryName, { color: theme.subtext }]}>
-            {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
+            {item.category
+              ? item.category.charAt(0).toUpperCase() + item.category.slice(1)
+              : 'General'}
           </ThemedText>
         </View>
         <Feather name='arrow-right' size={18} color={theme.border} />
       </TouchableOpacity>
-    </Animated.View>
+    </View>
   );
 
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         {/* Header */}
-        <Animated.View entering={FadeInUp.duration(600)} style={styles.header}>
+        <View style={styles.header}>
           <TouchableOpacity
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -121,12 +108,10 @@ export default function ExploreScreen() {
           <ThemedText style={styles.headerTitle} type='title'>
             Explore
           </ThemedText>
-        </Animated.View>
+        </View>
 
         {/* Search Bar */}
-        <Animated.View
-          entering={FadeInUp.delay(100).duration(600)}
-          style={styles.searchContainer}>
+        <View style={styles.searchContainer}>
           <View
             style={[
               styles.searchField,
@@ -151,12 +136,10 @@ export default function ExploreScreen() {
               </TouchableOpacity>
             )}
           </View>
-        </Animated.View>
+        </View>
 
         {/* Tabs */}
-        <Animated.View
-          entering={FadeInUp.delay(200).duration(600)}
-          style={styles.tabContainer}>
+        <View style={styles.tabContainer}>
           {(['problems', 'workers'] as const).map((tab) => (
             <Pressable
               key={tab}
@@ -178,7 +161,7 @@ export default function ExploreScreen() {
               </ThemedText>
             </Pressable>
           ))}
-        </Animated.View>
+        </View>
 
         <FlatList
           data={filteredData}

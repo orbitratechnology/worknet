@@ -169,11 +169,7 @@ export default function PublicProfileScreen() {
             <View style={[styles.ratingBadge, { backgroundColor: theme.card }]}>
               <Feather name='star' size={14} color='#FFB800' fill='#FFB800' />
               <ThemedText style={styles.ratingText}>
-                {provider.rating.toFixed(1)}{' '}
-                <ThemedText
-                  style={[styles.reviewCount, { color: theme.subtext }]}>
-                  ({provider.reviewCount})
-                </ThemedText>
+                {provider.rating.toFixed(1)}
               </ThemedText>
             </View>
           </View>

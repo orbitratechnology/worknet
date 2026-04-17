@@ -137,9 +137,12 @@ export default function ProviderProfileScreen() {
                 styles.statItem,
                 { backgroundColor: theme.card, borderColor: theme.border },
               ]}>
-              <ThemedText style={styles.statVal}>
-                {providerData.rating || '5.0'}
-              </ThemedText>
+              <View style={styles.statHeader}>
+                <Feather name='star' size={14} color='#EAB308' />
+                <ThemedText style={styles.statVal}>
+                  {providerData.rating || '5.0'}
+                </ThemedText>
+              </View>
               <ThemedText style={[styles.statLab, { color: theme.subtext }]}>
                 Rating
               </ThemedText>
@@ -149,23 +152,14 @@ export default function ProviderProfileScreen() {
                 styles.statItem,
                 { backgroundColor: theme.card, borderColor: theme.border },
               ]}>
-              <ThemedText style={styles.statVal}>
-                {providerData.experienceYears || '0'}+
-              </ThemedText>
+              <View style={styles.statHeader}>
+                <Feather name='clock' size={14} color={theme.accent} />
+                <ThemedText style={styles.statVal}>
+                  {providerData.experienceYears || '0'}+
+                </ThemedText>
+              </View>
               <ThemedText style={[styles.statLab, { color: theme.subtext }]}>
                 Years Exp
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.statItem,
-                { backgroundColor: theme.card, borderColor: theme.border },
-              ]}>
-              <ThemedText style={styles.statVal}>
-                {providerData.skillLevel || 'Pro'}
-              </ThemedText>
-              <ThemedText style={[styles.statLab, { color: theme.subtext }]}>
-                Level
               </ThemedText>
             </View>
           </View>
@@ -176,9 +170,12 @@ export default function ProviderProfileScreen() {
               styles.sectionCard,
               { backgroundColor: theme.card, borderColor: theme.border },
             ]}>
-            <ThemedText style={styles.sectionTitle}>
-              Contact & Location
-            </ThemedText>
+            <View style={styles.sectionHeader}>
+              <Feather name='map-pin' size={18} color={theme.accent} />
+              <ThemedText style={styles.sectionTitle}>
+                Contact & Location
+              </ThemedText>
+            </View>
 
             <View style={styles.detailRow}>
               <View
@@ -230,7 +227,10 @@ export default function ProviderProfileScreen() {
                   styles.sectionCard,
                   { backgroundColor: theme.card, borderColor: theme.border },
                 ]}>
-                <ThemedText style={styles.sectionTitle}>Expertise</ThemedText>
+                <View style={styles.sectionHeader}>
+                  <Feather name='award' size={18} color={theme.accent} />
+                  <ThemedText style={styles.sectionTitle}>Expertise</ThemedText>
+                </View>
                 <View style={styles.chipGrid}>
                   {providerData.secondaryProfessions.map(
                     (skill: string, index: number) => (
@@ -262,9 +262,12 @@ export default function ProviderProfileScreen() {
                 styles.sectionCard,
                 { backgroundColor: theme.card, borderColor: theme.border },
               ]}>
-              <ThemedText style={styles.sectionTitle}>
-                Services Offered
-              </ThemedText>
+              <View style={styles.sectionHeader}>
+                <Feather name='briefcase' size={18} color={theme.accent} />
+                <ThemedText style={styles.sectionTitle}>
+                  Services Offered
+                </ThemedText>
+              </View>
               {providerData.services.map((service: any) => (
                 <View
                   key={service.id}
@@ -309,7 +312,12 @@ export default function ProviderProfileScreen() {
                   styles.sectionCard,
                   { backgroundColor: theme.card, borderColor: theme.border },
                 ]}>
-                <ThemedText style={styles.sectionTitle}>Recent Work</ThemedText>
+                <View style={styles.sectionHeader}>
+                  <Feather name='image' size={18} color={theme.accent} />
+                  <ThemedText style={styles.sectionTitle}>
+                    Recent Work
+                  </ThemedText>
+                </View>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -333,7 +341,12 @@ export default function ProviderProfileScreen() {
               styles.sectionCard,
               { backgroundColor: theme.card, borderColor: theme.border },
             ]}>
-            <ThemedText style={styles.sectionTitle}>Pricing & Terms</ThemedText>
+            <View style={styles.sectionHeader}>
+              <Feather name='credit-card' size={18} color={theme.accent} />
+              <ThemedText style={styles.sectionTitle}>
+                Pricing & Terms
+              </ThemedText>
+            </View>
 
             <View style={styles.pricingGrid}>
               <View style={styles.priceBox}>
@@ -457,6 +470,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
   },
+  statHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   statVal: {
     fontSize: 18,
     fontWeight: '800',
@@ -471,10 +489,15 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 20,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '800',
-    marginBottom: 20,
   },
   detailRow: {
     flexDirection: 'row',
