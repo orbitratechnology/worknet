@@ -7,7 +7,6 @@ export default ({ config }) => ({
   icon: './assets/images/icon.png',
   scheme: 'worknet',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
   jsEngine: 'hermes',
   ios: {
     ...config.ios,
@@ -24,7 +23,6 @@ export default ({ config }) => ({
       backgroundColor: '#ffffff',
       foregroundImage: './assets/images/icon.png',
     },
-    edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     config: {
       googleMaps: {
@@ -34,6 +32,9 @@ export default ({ config }) => ({
   },
   plugins: [
     'react-native-google-auth',
+    'expo-font',
+    'expo-image',
+    'expo-web-browser',
     'expo-secure-store',
     'expo-router',
     [
