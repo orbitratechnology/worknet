@@ -1,7 +1,10 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { StackHeader } from '@/components/ui/stack-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
 import { db } from '@/lib/firebase';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -15,15 +18,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProviderProfileScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const { contentBottom } = useScreenInsets();
 
   const [providerData, setProviderData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -46,21 +47,27 @@ export default function ProviderProfileScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={styles.center}>
-        <ActivityIndicator size='large' color={theme.accent} />
-      </ThemedView>
+      <ScreenShell>
+        <View style={styles.center}>
+          <ActivityIndicator size='large' color={theme.accent} />
+        </View>
+      </ScreenShell>
     );
   }
 
   if (!providerData) {
     return (
-      <ThemedView
-        style={[styles.center, { backgroundColor: theme.secondaryBackground }]}>
+      <ScreenShell>
+        <View
+          style={[
+            styles.center,
+            { backgroundColor: theme.secondaryBackground },
+          ]}>
         <Feather name='alert-circle' size={48} color={theme.subtext} />
         <ThemedText style={styles.emptyTitle}>No Identity Found</ThemedText>
         <TouchableOpacity
           style={styles.enrollBtn}
-          onPress={() => router.push('/enroll-provider')}>
+          onPress={() => router.push('/(app)/enroll-provider')}>
           <LinearGradient
             colors={[theme.accent, '#1E40AF']}
             style={styles.gradient}>
@@ -69,35 +76,34 @@ export default function ProviderProfileScreen() {
             </ThemedText>
           </LinearGradient>
         </TouchableOpacity>
-      </ThemedView>
+        </View>
+      </ScreenShell>
     );
   }
 
   return (
-    <ThemedView style={[styles.container]}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <View style={styles.header}>
+    <ScreenShell>
+      <StackHeader
+        title='Professional Identity'
+        border
+        right={
           <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}>
-            <Feather name='arrow-left' size={24} color={theme.text} />
-          </TouchableOpacity>
-          <ThemedText style={styles.headerTitle}>
-            Professional Identity
-          </ThemedText>
-          <TouchableOpacity
-            onPress={() => router.push('/enroll-provider')}
+            onPress={() => router.push('/(app)/enroll-provider')}
             style={[
               styles.editButton,
               { backgroundColor: theme.card, borderColor: theme.border },
             ]}>
             <Feather name='edit-3' size={18} color={theme.accent} />
           </TouchableOpacity>
-        </View>
+        }
+      />
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: contentBottom + 24 },
+        ]}>
           {/* Hero Section */}
           <View
             style={[
@@ -373,15 +379,11 @@ export default function ProviderProfileScreen() {
 
           <View style={{ height: 40 }} />
         </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -407,23 +409,25 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   editButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: Layout.minTouch,
+    height: Layout.minTouch,
+    borderRadius: Layout.chipRadius,
     borderWidth: 1,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    gap: 16,
+    paddingHorizontal: Layout.screenPadding,
+    gap: Layout.itemGap + 4,
   },
   heroCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    borderRadius: 24,
+    borderRadius: Layout.cardRadius,
     borderWidth: 1,
+    borderCurve: 'continuous',
     gap: 20,
   },
   profileImage: {

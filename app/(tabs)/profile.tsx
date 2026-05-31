@@ -1,8 +1,11 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useRequireAuth } from '@/hooks/use-require-auth';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
 import { db } from '@/lib/firebase';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -20,9 +23,7 @@ import {
   View,
 } from 'react-native';
 
-import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SettingRow = React.memo(function SettingRow({
   icon,
@@ -87,8 +88,9 @@ const SettingRow = React.memo(function SettingRow({
 export default function ProfileScreen() {
   const router = useRouter();
   const { signOut, user, userProfile } = useAuth();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const { requireAuth } = useRequireAuth();
+  const theme = useTheme();
+  const { contentBottom } = useScreenInsets({ tabBar: true });
 
   const [userData, setUserData] = useState<any>(null);
   const [providerData, setProviderData] = useState<any>(null);
@@ -137,26 +139,120 @@ export default function ProfileScreen() {
       (userData?.fullName || 'User') +
       '&background=000000&color=FFFFFF';
 
-  return (
-    <ThemedView style={[styles.container]}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+  if (!user) {
+    return (
+      <ScreenShell>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
-          {/* Simple Header */}
-          <View style={styles.header}>
-            <ThemedText style={styles.headerTitle}>Profile</ThemedText>
-          </View>
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: contentBottom },
+          ]}>
+          <ScreenHeader title='Profile' />
 
-          {/* Profile Card */}
-          <View style={styles.profileSection}>
+          <View
+              style={[
+                styles.profileCard,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}>
+              <View style={styles.profileInfo}>
+                <ThemedText style={styles.profileNameMain} selectable>
+                  Browse without signing in
+                </ThemedText>
+                <ThemedText
+                  style={[styles.profileEmail, { color: theme.subtext }]}
+                  selectable>
+                  Sign in to save providers, leave reviews, or offer your
+                  services.
+                </ThemedText>
+                <Pressable
+                  onPress={() => router.push('/login')}
+                  style={[
+                    styles.badgeProfile,
+                    { backgroundColor: theme.accent, marginTop: 12 },
+                  ]}>
+                  <ThemedText
+                    style={[styles.badgeTextProfile, { color: theme.onAccent }]}>
+                    Sign In
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  onPress={() => router.push('/register')}
+                  style={[
+                    styles.badgeProfile,
+                    {
+                      backgroundColor: theme.surface,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      marginTop: 8,
+                    },
+                  ]}>
+                  <ThemedText
+                    style={[styles.badgeTextProfile, { color: theme.text }]}>
+                    Create Account
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <ThemedText style={[styles.sectionLabel, { color: theme.subtext }]}>
+                PREFERENCES
+              </ThemedText>
+              <View
+                style={[
+                  styles.cardGroup,
+                  { backgroundColor: theme.card, borderColor: theme.border },
+                ]}>
+                <SettingRow
+                  icon='file-text'
+                  title='Privacy Policy'
+                  theme={theme}
+                  onPress={() =>
+                    WebBrowser.openBrowserAsync('https://orbitratech.net')
+                  }
+                />
+                <View
+                  style={[styles.divider, { backgroundColor: theme.border }]}
+                />
+                <SettingRow
+                  icon='help-circle'
+                  title='Help & Support'
+                  theme={theme}
+                  onPress={() => Linking.openURL('mailto:admin@orbitratech.net')}
+                />
+              </View>
+            </View>
+
+            <View style={styles.footer}>
+              <ThemedText style={[styles.versionText, { color: theme.subtext }]}>
+                Worknet v1.0.0
+              </ThemedText>
+            </View>
+          </ScrollView>
+      </ScreenShell>
+    );
+  }
+
+  return (
+    <ScreenShell>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: contentBottom },
+        ]}>
+        <ScreenHeader title='Profile' />
+
+        {/* Profile Card */}
+        <View style={styles.profileSection}>
             {isProvider ? (
               <TouchableOpacity
                 activeOpacity={1}
                 onPress={() => router.push('/(app)/provider-profile')}
                 style={[
                   styles.providerCardPremium,
-                  { backgroundColor: theme.card, borderColor: theme.accent },
+                  { backgroundColor: theme.card, borderColor: theme.border },
                 ]}>
                 <Image
                   source={providerData?.imageUrl || profileImageUrl}
@@ -183,7 +279,7 @@ export default function ProfileScreen() {
                     <MaterialCommunityIcons
                       name='star'
                       size={14}
-                      color='#FFB800'
+                      color={theme.text}
                     />
                     <ThemedText style={{ fontSize: 13, fontWeight: '600' }}>
                       {providerData?.rating?.toFixed(1) || '5.0'}
@@ -215,7 +311,7 @@ export default function ProfileScreen() {
                     </ThemedText>
                   )}
                   <TouchableOpacity
-                    onPress={() => router.push('/edit-profile')}
+                    onPress={() => router.push('/(app)/edit-profile')}
                     style={[
                       styles.badgeProfile,
                       { backgroundColor: theme.accent + '10' },
@@ -260,7 +356,7 @@ export default function ProfileScreen() {
                         size={18}
                         color={
                           providerStatus === 'online'
-                            ? '#4CAF50'
+                            ? theme.online
                             : theme.subtext
                         }
                       />
@@ -297,7 +393,7 @@ export default function ProfileScreen() {
                         }
                       }
                     }}
-                    trackColor={{ false: theme.border, true: '#4CAF50' }}
+                    trackColor={{ false: theme.border, true: theme.online }}
                     thumbColor='#fff'
                   />
                 </View>
@@ -311,19 +407,26 @@ export default function ProfileScreen() {
                   styles.enrollCardPremium,
                   {
                     backgroundColor: theme.card,
-                    borderColor: theme.accent,
+                    borderColor: theme.border,
                   },
                 ]}
-                onPress={() => router.push('/enroll-provider')}>
-                <LinearGradient
-                  colors={['#000000', '#333333']}
-                  style={styles.providerIconGradient}>
+                onPress={() => {
+                  if (!requireAuth('Sign in to offer your service')) {
+                    return;
+                  }
+                  router.push('/(app)/enroll-provider');
+                }}>
+                <View
+                  style={[
+                    styles.providerIconBox,
+                    { backgroundColor: theme.text },
+                  ]}>
                   <MaterialCommunityIcons
                     name='rocket-launch'
-                    size={24}
-                    color='#FFFFFF'
+                    size={22}
+                    color={theme.onAccent}
                   />
-                </LinearGradient>
+                </View>
                 <View style={{ flex: 1, marginLeft: 16 }}>
                   <ThemedText style={styles.providerCardTitle}>
                     Become a Provider
@@ -332,7 +435,7 @@ export default function ProfileScreen() {
                     Start earning by offering your skills.
                   </ThemedText>
                 </View>
-                <Feather name='chevron-right' size={20} color={theme.accent} />
+                <Feather name='chevron-right' size={20} color={theme.subtext} />
               </TouchableOpacity>
             )}
           </View>
@@ -433,48 +536,30 @@ export default function ProfileScreen() {
               Worknet v1.0.0
             </ThemedText>
           </View>
-          <View style={{ height: 100 }} />
         </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingTop: 20 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
+  scrollContent: { paddingBottom: 8 },
   profileSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: Layout.screenPadding,
+    marginBottom: Layout.sectionGap,
   },
   profileCard: {
     padding: 20,
-    borderRadius: 24,
+    borderRadius: Layout.cardRadius,
     flexDirection: 'row',
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
-    elevation: 2,
+    borderCurve: 'continuous',
   },
   avatarLarge: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#F3EEE6',
   },
   profileInfo: {
     flex: 1,
@@ -497,17 +582,17 @@ const styles = StyleSheet.create({
   },
   badgeProfile: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Layout.chipRadius,
   },
   badgeTextProfile: {
     fontSize: 12,
     fontWeight: '700',
   },
   section: {
-    marginBottom: 24,
-    paddingHorizontal: 20,
+    marginBottom: Layout.sectionGap,
+    paddingHorizontal: Layout.screenPadding,
   },
   sectionLabel: {
     fontSize: 12,
@@ -520,32 +605,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    shadowColor: '#2E5BFF',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
+    borderRadius: Layout.cardRadius,
+    borderWidth: 1,
+    borderCurve: 'continuous',
   },
   enrollCardPremium: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 18,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
+    borderRadius: Layout.cardRadius,
+    borderWidth: 1,
+    borderCurve: 'continuous',
   },
-  providerIconGradient: {
+  providerIconBox: {
     width: 48,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    borderCurve: 'continuous',
   },
   providerCardTitle: {
     fontSize: 16,
@@ -553,14 +631,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   cardGroup: {
-    borderRadius: 24,
+    borderRadius: Layout.cardRadius,
     overflow: 'hidden',
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 1,
+    borderCurve: 'continuous',
   },
   settingRow: {
     flexDirection: 'row',
@@ -605,7 +679,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   footer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.screenPadding,
     marginTop: 8,
     alignItems: 'center',
     gap: 16,
@@ -621,7 +695,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 24,
     paddingVertical: 14,
-    borderRadius: 16,
+    borderRadius: Layout.chipRadius,
     borderWidth: 1,
   },
   logoutBtnText: {

@@ -1,27 +1,21 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { StackHeader } from '@/components/ui/stack-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
 import { auth, db } from '@/lib/firebase';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { deleteUser } from 'firebase/auth';
 import { deleteDoc, doc } from 'firebase/firestore';
 import React, { useState } from 'react';
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 export default function SettingsScreen() {
   const { user } = useAuth();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const { contentBottom } = useScreenInsets();
   const [loading, setLoading] = useState(false);
 
   const handleDeleteAccount = async () => {
@@ -31,36 +25,29 @@ export default function SettingsScreen() {
       'Delete Account',
       'Are you sure you want to delete your account? This action cannot be undone and you will lose all your data.',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
+        { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true);
-
               const currentUser = auth.currentUser;
               if (currentUser) {
-                // 1. Delete user document from Firestore
                 try {
                   await deleteDoc(doc(db, 'users', currentUser.uid));
-                } catch (e) {
-                  console.error('Error deleting user doc:', e);
+                } catch (deleteUserDocError) {
+                  console.error('Error deleting user doc:', deleteUserDocError);
                 }
 
-                // 2. If provider, delete provider doc
                 try {
                   await deleteDoc(
                     doc(db, 'service_providers', currentUser.uid),
                   );
-                } catch (e) {
-                  // ignore
+                } catch {
+                  // Provider doc may not exist
                 }
 
-                // 3. Delete the user from Firebase Auth
                 await deleteUser(currentUser);
               }
             } catch (error: any) {
@@ -86,110 +73,81 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}>
-            <Feather name='arrow-left' size={24} color={theme.text} />
-          </TouchableOpacity>
-          <ThemedText style={styles.headerTitle}>Settings</ThemedText>
+    <ScreenShell>
+      <StackHeader title='Settings' border />
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: contentBottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}>
+        <ThemedText style={[styles.sectionLabel, { color: theme.subtext }]}>
+          DANGER ZONE
+        </ThemedText>
+
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: theme.card, borderColor: theme.error + '40' },
+          ]}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.row,
+              pressed && { opacity: 0.85 },
+            ]}
+            onPress={handleDeleteAccount}
+            disabled={loading}>
+            <Feather name='trash-2' size={20} color={theme.error} />
+            <ThemedText
+              style={[styles.deleteText, { color: theme.error }]}
+              selectable>
+              {loading ? 'Deleting...' : 'Delete Account'}
+            </ThemedText>
+          </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={{ marginBottom: 12, paddingLeft: 4 }}>
-            <ThemedText
-              style={{
-                fontSize: 12,
-                fontWeight: '800',
-                letterSpacing: 1,
-                textTransform: 'uppercase',
-                color: theme.subtext,
-              }}>
-              DANGER ZONE
-            </ThemedText>
-          </View>
-
-          <View
-            style={[
-              styles.section,
-              { backgroundColor: theme.card, borderColor: theme.error + '40' },
-            ]}>
-            <TouchableOpacity
-              style={styles.row}
-              onPress={handleDeleteAccount}
-              disabled={loading}>
-              <View style={styles.rowContent}>
-                <Feather
-                  name='trash-2'
-                  size={20}
-                  color={theme.error}
-                  style={{ marginRight: 12 }}
-                />
-                <ThemedText
-                  style={{
-                    color: theme.error,
-                    fontSize: 16,
-                    fontWeight: '600',
-                  }}>
-                  {loading ? 'Deleting...' : 'Delete Account'}
-                </ThemedText>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ marginTop: 12, paddingHorizontal: 4 }}>
-            <ThemedText
-              style={{
-                fontSize: 12,
-                color: theme.subtext,
-                textAlign: 'center',
-              }}>
-              This is a permanent action and cannot be undone.
-            </ThemedText>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+        <ThemedText style={[styles.hint, { color: theme.subtext }]} selectable>
+          This is a permanent action and cannot be undone.
+        </ThemedText>
+      </ScrollView>
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    paddingTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    marginRight: 16,
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
   content: {
-    padding: 20,
+    padding: Layout.screenPadding,
+    gap: Layout.itemGap,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    paddingLeft: 4,
   },
   section: {
-    borderRadius: 16,
+    borderRadius: Layout.cardRadius,
     overflow: 'hidden',
     borderWidth: 1,
+    borderCurve: 'continuous',
   },
   row: {
     padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+    minHeight: Layout.minTouch,
   },
-  rowContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  deleteText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  hint: {
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: 8,
   },
 });

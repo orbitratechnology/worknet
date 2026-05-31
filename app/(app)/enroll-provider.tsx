@@ -1,14 +1,18 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { StackHeader } from '@/components/ui/stack-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { cardShadow, Layout, type ColorScheme } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
 import { useAuth } from '@/context/auth';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
 import { db, storage } from '@/lib/firebase';
 import { getGeohash } from '@/lib/geo';
 import { ServiceProvider } from '@/types/database';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
@@ -25,18 +29,17 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from 'react-native';
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const EXPERIENCE_YEARS = ['0–1', '1–3', '3–5', '5–10', '10+'];
 
 export default function EnrollProviderScreen() {
   const { user, userProfile, refreshUser } = useAuth();
   const router = useRouter();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const colorScheme = (useColorScheme() ?? 'light') as ColorScheme;
+  const { contentBottom } = useScreenInsets();
 
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -383,8 +386,8 @@ export default function EnrollProviderScreen() {
         style={[
           styles.chip,
           {
-            backgroundColor: isSelected ? theme.accent : theme.card,
-            borderColor: isSelected ? theme.accent : theme.border,
+            backgroundColor: isSelected ? theme.text : theme.card,
+            borderColor: theme.border,
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 16,
@@ -409,45 +412,44 @@ export default function EnrollProviderScreen() {
 
   if (initialLoading) {
     return (
-      <ThemedView style={styles.center}>
-        <ActivityIndicator size='large' color={theme.accent} />
-      </ThemedView>
+      <ScreenShell>
+        <View style={styles.center}>
+          <ActivityIndicator size='large' color={theme.text} />
+        </View>
+      </ScreenShell>
     );
   }
 
   return (
-    <ThemedView style={[styles.container]}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}>
-            <Feather name='arrow-left' size={24} color={theme.text} />
-          </TouchableOpacity>
-          <ThemedText style={styles.headerTitle}>
-            {userProfile?.isServiceProvider
-              ? 'Update Profile'
-              : 'Professional Profile'}
-          </ThemedText>
-          <View style={{ width: 44 }} />
-        </View>
+    <ScreenShell>
+      <StackHeader
+        title={
+          userProfile?.isServiceProvider
+            ? 'Update Profile'
+            : 'Professional Profile'
+        }
+        border
+      />
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: contentBottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}>
           {/* Identity Section */}
           <View
             style={[
               styles.card,
-              { backgroundColor: theme.card, borderColor: theme.border },
+              { backgroundColor: theme.card, boxShadow: cardShadow(colorScheme) },
             ]}>
             <View style={styles.sectionHeader}>
               <View
                 style={[
                   styles.iconBox,
-                  { backgroundColor: theme.accent + '10' },
+                  { backgroundColor: theme.muted },
                 ]}>
-                <Feather name='user' size={18} color={theme.accent} />
+                <Feather name='user' size={18} color={theme.text} />
               </View>
               <ThemedText style={styles.sectionTitle}>
                 Identity & Contact
@@ -461,7 +463,10 @@ export default function EnrollProviderScreen() {
                 <View
                   style={[
                     styles.photoPlaceholder,
-                    { backgroundColor: theme.secondaryBackground },
+                    {
+                      backgroundColor: theme.secondaryBackground,
+                      borderColor: theme.border,
+                    },
                   ]}>
                   <Feather name='camera' size={28} color={theme.subtext} />
                   <ThemedText style={styles.photoText}>Upload Photo</ThemedText>
@@ -470,7 +475,7 @@ export default function EnrollProviderScreen() {
               <View
                 style={[
                   styles.editBadge,
-                  { backgroundColor: theme.accent, borderColor: theme.card },
+                  { backgroundColor: theme.text, borderColor: theme.card },
                 ]}>
                 <Feather name='edit-2' size={12} color={theme.onAccent} />
               </View>
@@ -559,16 +564,16 @@ export default function EnrollProviderScreen() {
                   style={[
                     styles.actionButton,
                     {
-                      backgroundColor: theme.accent + '15',
-                      borderColor: theme.accent,
-                      borderWidth: 1.5,
+                      backgroundColor: theme.muted,
+                      borderColor: theme.border,
+                      borderWidth: 1,
                       flex: 1,
                     },
                   ]}>
-                  <Feather name='navigation' size={20} color={theme.accent} />
+                  <Feather name='navigation' size={20} color={theme.text} />
                   <ThemedText
                     style={{
-                      color: theme.accent,
+                      color: theme.text,
                       fontSize: 14,
                       fontWeight: '700',
                     }}>
@@ -622,15 +627,15 @@ export default function EnrollProviderScreen() {
           <View
             style={[
               styles.card,
-              { backgroundColor: theme.card, borderColor: theme.border },
+              { backgroundColor: theme.card, boxShadow: cardShadow(colorScheme) },
             ]}>
             <View style={styles.sectionHeader}>
               <View
                 style={[
                   styles.iconBox,
-                  { backgroundColor: theme.accent + '10' },
+                  { backgroundColor: theme.muted },
                 ]}>
-                <Feather name='briefcase' size={18} color={theme.accent} />
+                <Feather name='briefcase' size={18} color={theme.text} />
               </View>
               <ThemedText style={styles.sectionTitle}>
                 Service Details
@@ -706,15 +711,15 @@ export default function EnrollProviderScreen() {
           <View
             style={[
               styles.card,
-              { backgroundColor: theme.card, borderColor: theme.border },
+              { backgroundColor: theme.card, boxShadow: cardShadow(colorScheme) },
             ]}>
             <View style={styles.sectionHeader}>
               <View
                 style={[
                   styles.iconBox,
-                  { backgroundColor: theme.accent + '10' },
+                  { backgroundColor: theme.muted },
                 ]}>
-                <Feather name='map' size={18} color={theme.accent} />
+                <Feather name='map' size={18} color={theme.text} />
               </View>
               <ThemedText style={styles.sectionTitle}>Service Area</ThemedText>
             </View>
@@ -759,7 +764,7 @@ export default function EnrollProviderScreen() {
                       style={{
                         width: `${(formData.serviceRadius / 100) * 100}%`,
                         height: '100%',
-                        backgroundColor: theme.accent,
+                        backgroundColor: theme.text,
                         borderRadius: 6,
                       }}
                     />
@@ -804,8 +809,8 @@ export default function EnrollProviderScreen() {
                         longitude: locationState.longitude,
                       }}
                       radius={formData.serviceRadius * 1000}
-                      fillColor={theme.accent + '30'}
-                      strokeColor={theme.accent}
+                      fillColor={theme.text + '25'}
+                      strokeColor={theme.text}
                       strokeWidth={2}
                     />
                     <Marker
@@ -842,15 +847,15 @@ export default function EnrollProviderScreen() {
           <View
             style={[
               styles.card,
-              { backgroundColor: theme.card, borderColor: theme.border },
+              { backgroundColor: theme.card, boxShadow: cardShadow(colorScheme) },
             ]}>
             <View style={styles.sectionHeader}>
               <View
                 style={[
                   styles.iconBox,
-                  { backgroundColor: theme.accent + '10' },
+                  { backgroundColor: theme.muted },
                 ]}>
-                <Feather name='dollar-sign' size={18} color={theme.accent} />
+                <Feather name='dollar-sign' size={18} color={theme.text} />
               </View>
               <ThemedText style={styles.sectionTitle}>
                 Pricing & Availability
@@ -902,7 +907,7 @@ export default function EnrollProviderScreen() {
                 onValueChange={(val) =>
                   setFormData({ ...formData, emergencyAvailability: val })
                 }
-                trackColor={{ false: theme.border, true: theme.accent }}
+                trackColor={{ false: theme.border, true: theme.text }}
               />
             </View>
           </View>
@@ -911,15 +916,15 @@ export default function EnrollProviderScreen() {
           <View
             style={[
               styles.card,
-              { backgroundColor: theme.card, borderColor: theme.border },
+              { backgroundColor: theme.card, boxShadow: cardShadow(colorScheme) },
             ]}>
             <View style={styles.sectionHeader}>
               <View
                 style={[
                   styles.iconBox,
-                  { backgroundColor: theme.accent + '10' },
+                  { backgroundColor: theme.muted },
                 ]}>
-                <Feather name='image' size={18} color={theme.accent} />
+                <Feather name='image' size={18} color={theme.text} />
               </View>
               <ThemedText style={styles.sectionTitle}>Work Samples</ThemedText>
             </View>
@@ -980,15 +985,15 @@ export default function EnrollProviderScreen() {
           <View
             style={[
               styles.card,
-              { backgroundColor: theme.card, borderColor: theme.border },
+              { backgroundColor: theme.card, boxShadow: cardShadow(colorScheme) },
             ]}>
             <View style={styles.sectionHeader}>
               <View
                 style={[
                   styles.iconBox,
-                  { backgroundColor: theme.accent + '10' },
+                  { backgroundColor: theme.muted },
                 ]}>
-                <Feather name='user' size={18} color={theme.accent} />
+                <Feather name='user' size={18} color={theme.text} />
               </View>
               <ThemedText style={styles.sectionTitle}>About You</ThemedText>
             </View>
@@ -1017,30 +1022,26 @@ export default function EnrollProviderScreen() {
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={loading}
-            style={styles.submitButton}>
-            <LinearGradient
-              colors={[theme.accent, theme.accent]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradient}>
-              {loading ? (
-                <ActivityIndicator color={theme.onAccent} />
-              ) : (
-                <>
-                  <ThemedText
-                    style={[styles.submitText, { color: theme.onAccent }]}>
-                    {userProfile?.isServiceProvider
-                      ? 'Save Changes'
-                      : 'Become a Provider'}
-                  </ThemedText>
-                  <Feather
-                    name='arrow-right'
-                    size={20}
-                    color={theme.onAccent}
-                  />
-                </>
-              )}
-            </LinearGradient>
+            style={[
+              styles.submitButton,
+              {
+                backgroundColor: theme.text,
+                opacity: loading ? 0.7 : 1,
+              },
+            ]}>
+            {loading ? (
+              <ActivityIndicator color={theme.onAccent} />
+            ) : (
+              <>
+                <ThemedText
+                  style={[styles.submitText, { color: theme.onAccent }]}>
+                  {userProfile?.isServiceProvider
+                    ? 'Save Changes'
+                    : 'Become a Provider'}
+                </ThemedText>
+                <Feather name='arrow-right' size={20} color={theme.onAccent} />
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={{ height: 40 }} />
@@ -1067,8 +1068,7 @@ export default function EnrollProviderScreen() {
           theme={theme}
           currentProfession={formData.primaryProfession}
         />
-      </SafeAreaView>
-    </ThemedView>
+    </ScreenShell>
   );
 }
 
@@ -1085,6 +1085,7 @@ function MapPickerModal({
   initialLocation: { latitude: number; longitude: number } | null;
   theme: any;
 }) {
+  const { top, bottom } = useScreenInsets();
   const [region, setRegion] = useState({
     latitude: initialLocation?.latitude || 6.9271,
     longitude: initialLocation?.longitude || 79.8612,
@@ -1095,7 +1096,12 @@ function MapPickerModal({
   return (
     <Modal visible={visible} animationType='slide' transparent={false}>
       <ThemedView style={{ flex: 1 }}>
-        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+        <View
+          style={{
+            flex: 1,
+            paddingTop: top,
+            paddingBottom: bottom,
+          }}>
           <View
             style={[
               styles.mapHeader,
@@ -1118,7 +1124,7 @@ function MapPickerModal({
               style={[
                 styles.mapConfirmButton,
                 {
-                  backgroundColor: theme.accent,
+                  backgroundColor: theme.text,
                   height: 48,
                   justifyContent: 'center',
                   paddingHorizontal: 24,
@@ -1144,10 +1150,10 @@ function MapPickerModal({
               onRegionChangeComplete={setRegion}
             />
             <View style={styles.mapMarkerFixed}>
-              <Feather name='map-pin' size={40} color={theme.accent} />
+              <Feather name='map-pin' size={40} color={theme.text} />
             </View>
           </View>
-        </SafeAreaView>
+        </View>
       </ThemedView>
     </Modal>
   );
@@ -1255,7 +1261,7 @@ function ProfessionPickerModal({
                   style={{
                     fontSize: 13,
                     fontWeight: '700',
-                    color: theme.accent,
+                    color: theme.text,
                     marginBottom: 12,
                     textTransform: 'uppercase',
                     letterSpacing: 1,
@@ -1336,11 +1342,9 @@ function ProfessionItem({
         alignItems: 'center',
         padding: 20,
         borderRadius: 20,
-        backgroundColor: isSelected
-          ? theme.accent + '15'
-          : theme.secondaryBackground,
-        borderWidth: 2,
-        borderColor: isSelected ? theme.accent : theme.border,
+        backgroundColor: isSelected ? theme.text : theme.muted,
+        borderWidth: 1,
+        borderColor: theme.border,
         gap: 20,
       }}>
       <View
@@ -1348,14 +1352,16 @@ function ProfessionItem({
           width: 50,
           height: 50,
           borderRadius: 25,
-          backgroundColor: worker.color + '25',
+          backgroundColor: isSelected
+            ? 'rgba(255,255,255,0.15)'
+            : theme.card,
           justifyContent: 'center',
           alignItems: 'center',
         }}>
         <MaterialCommunityIcons
           name={worker.icon as any}
           size={24}
-          color={worker.color}
+          color={isSelected ? theme.onAccent : theme.text}
         />
       </View>
       <View style={{ flex: 1 }}>
@@ -1363,20 +1369,20 @@ function ProfessionItem({
           style={{
             fontSize: 18,
             fontWeight: '700',
-            color: isSelected ? theme.accent : theme.text,
+            color: isSelected ? theme.onAccent : theme.text,
           }}>
           {worker.name}
         </ThemedText>
         <ThemedText
           style={{
             fontSize: 14,
-            color: isSelected ? theme.accent : theme.subtext,
+            color: isSelected ? theme.onAccent : theme.subtext,
             textTransform: 'capitalize',
             marginTop: 4,
           }}></ThemedText>
       </View>
       {isSelected ? (
-        <Feather name='check-circle' size={24} color={theme.accent} />
+        <Feather name='check-circle' size={24} color={theme.onAccent} />
       ) : (
         <Feather name='chevron-right' size={24} color={theme.subtext} />
       )}
@@ -1397,28 +1403,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.screenPadding,
     paddingVertical: 16,
   },
   backButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: Layout.minTouch,
+    height: Layout.minTouch,
+    borderRadius: Layout.minTouch / 2,
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   scrollContent: {
-    paddingHorizontal: 10,
-    gap: 16,
+    paddingHorizontal: Layout.screenPadding,
+    gap: Layout.sectionGap,
   },
   card: {
     padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
+    borderRadius: Layout.cardRadius,
+    borderCurve: 'continuous',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1437,10 +1443,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 48,
-    borderRadius: 12,
+    height: Layout.inputHeight - 4,
+    borderRadius: Layout.chipRadius,
     gap: 8,
     paddingHorizontal: 16,
+    borderCurve: 'continuous',
   },
   controlButton: {
     width: 50,
@@ -1469,9 +1476,8 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#CBD5E1',
   },
   photoText: {
     fontSize: 12,
@@ -1505,9 +1511,10 @@ const styles = StyleSheet.create({
     paddingLeft: 4,
   },
   input: {
-    height: 60,
+    height: Layout.inputHeight,
     borderRadius: 16,
-    borderWidth: 2,
+    borderWidth: 1,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
     fontSize: 16,
     fontWeight: '500',
@@ -1518,10 +1525,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: Layout.chipRadius,
     borderWidth: 1,
+    borderCurve: 'continuous',
   },
   chipText: {
     fontSize: 13,
@@ -1537,29 +1545,19 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   submitButton: {
-    width: '90%',
-    marginHorizontal: 'auto',
-    height: 60,
-    borderRadius: 100,
-    overflow: 'hidden',
-    marginTop: 10,
-    shadowColor: '#2E5BFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 4,
-  },
-  gradient: {
-    flex: 1,
+    width: '100%',
+    minHeight: Layout.inputHeight + 2,
+    borderRadius: Layout.chipRadius,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
+    marginTop: 8,
+    borderCurve: 'continuous',
   },
   submitText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 17,
+    fontWeight: '700',
   },
   mapHeader: {
     flexDirection: 'row',
@@ -1577,10 +1575,9 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   mapConfirmButton: {
-    backgroundColor: '#2E5BFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: Layout.chipRadius,
   },
   mapMarkerFixed: {
     position: 'absolute',

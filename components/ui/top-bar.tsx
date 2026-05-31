@@ -1,67 +1,70 @@
-import { Colors } from '@/constants/theme';
+import { Layout, Typography } from '@/constants/theme';
 import { useLocation } from '@/context/location';
+import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import {
   ActivityIndicator,
+  Pressable,
   StyleSheet,
-  TouchableOpacity,
   View,
-  useColorScheme,
 } from 'react-native';
 import { ThemedText } from '../themed-text';
-import { ThemedView } from '../themed-view';
 
 export function TopBar() {
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
   const { city, loading, refreshLocation } = useLocation();
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.logoAndLocation}>
-        <View style={[styles.logoSmall]}>
+    <View style={styles.container}>
+      <View style={styles.brandRow}>
+        <View style={[styles.logoWrap, { backgroundColor: theme.card }]}>
           <Image
             source={require('@/assets/images/adaptive-icon.png')}
-            style={styles.logoSmallImage}
+            style={styles.logoImage}
             contentFit='contain'
           />
         </View>
-        <View style={styles.leftSection}>
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={refreshLocation}
-            style={styles.locationSelector}>
-            <Feather name='map-pin' size={14} color={theme.accent} />
+        <View style={styles.greetingBlock}>
+          <ThemedText style={[styles.eyebrow, { color: theme.subtext }]}>
+            Discover pros near
+          </ThemedText>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              refreshLocation();
+            }}
+            style={({ pressed }) => [
+              styles.locationRow,
+              { opacity: pressed ? 0.75 : 1 },
+            ]}>
             {loading ? (
-              <ActivityIndicator size='small' color={theme.accent} />
+              <ActivityIndicator size='small' color={theme.text} />
             ) : (
-              <ThemedText style={styles.locationText} type='defaultSemiBold'>
-                {city || 'Pick Location'}
-              </ThemedText>
+              <>
+                <ThemedText style={styles.locationText} type='headline'>
+                  {city || 'Set location'}
+                </ThemedText>
+                <Feather name='chevron-down' size={18} color={theme.text} />
+              </>
             )}
-            <Feather name='refresh-cw' size={14} color={theme.subtext} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
-      <View style={styles.rightSection}>
-        <TouchableOpacity
-          activeOpacity={1}
-          style={[styles.iconButton, { backgroundColor: theme.surface }]}>
-          <Feather name='bell' size={20} color={theme.text} />
-          <View
-            style={[
-              styles.notificationBadge,
-              {
-                backgroundColor: theme.accent,
-                borderColor: theme.background,
-              },
-            ]}
-          />
-        </TouchableOpacity>
-      </View>
-    </ThemedView>
+      <Pressable
+        style={({ pressed }) => [
+          styles.iconButton,
+          {
+            backgroundColor: theme.card,
+            borderColor: theme.border,
+            opacity: pressed ? 0.88 : 1,
+          },
+        ]}>
+        <Feather name='bell' size={20} color={theme.text} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -70,68 +73,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: 4,
     paddingBottom: 16,
-    backgroundColor: 'transparent',
   },
-  logoAndLocation: {
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
-  logoSmall: {
+  logoWrap: {
     width: 40,
     height: 40,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    borderCurve: 'continuous',
   },
-  logoSmallImage: {
-    width: 40,
-    height: 40,
+  logoImage: {
+    width: 32,
+    height: 32,
   },
-  leftSection: {
-    justifyContent: 'center',
+  greetingBlock: {
+    flex: 1,
+    gap: 2,
   },
-  rightSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
+  eyebrow: {
+    ...Typography.micro,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 4,
   },
-  locationSelector: {
+  locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 2,
+    minHeight: Layout.minTouch,
   },
   locationText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: Layout.minTouch,
+    height: Layout.minTouch,
+    borderRadius: Layout.minTouch / 2,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    borderWidth: 2,
+    borderCurve: 'continuous',
   },
 });

@@ -1,12 +1,16 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { AppBottomSheet } from '@/components/ui/app-bottom-sheet';
 import { FilterOptions, FilterSheet } from '@/components/ui/filter-sheet';
-import { ServiceListCard } from '@/components/ui/service-list-card';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { SearchField } from '@/components/ui/search-field';
+import { ServiceCard } from '@/components/ui/service-card';
 import { PROBLEMS, Problem } from '@/constants/problems';
-import { Colors } from '@/constants/theme';
+import { Layout } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
 import { useLocation } from '@/context/location';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
 import { db } from '@/lib/firebase';
 import { calculateDistance, getNearbyProviders } from '@/lib/geo';
 import { ServiceProvider } from '@/types/database';
@@ -33,12 +37,9 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const FILTER_CHIPS = [
   'Filters',
@@ -57,8 +58,8 @@ export default function ServicesScreen() {
     problem: string;
     searchText: string;
   }>();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const { contentBottom } = useScreenInsets({ tabBar: true });
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const [activeFilter, setActiveFilter] =
     useState<(typeof FILTER_CHIPS)[number]>('Nearest');
@@ -71,6 +72,7 @@ export default function ServicesScreen() {
       : null,
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [searchText, setSearchText] = useState(initialSearch || '');
   const [services, setServices] = useState<ServiceProvider[]>([]);
   const [filteredServices, setFilteredServices] = useState<ServiceProvider[]>(
@@ -108,7 +110,9 @@ export default function ServicesScreen() {
 
   useEffect(() => {
     async function setupQuery() {
-      setLoading(true);
+      if (!refreshing) {
+        setLoading(true);
+      }
       setLastVisible(null);
       setHasMore(true);
 
@@ -145,10 +149,13 @@ export default function ServicesScreen() {
 
           setServices(sortedResults);
           setLoading(false);
+          setRefreshing(false);
           setHasMore(false); // getNearbyProviders currently fetches all at once
           return;
         } catch (error) {
           console.error('Error in nearby search:', error);
+          setLoading(false);
+          setRefreshing(false);
         }
       }
 
@@ -211,6 +218,7 @@ export default function ServicesScreen() {
 
       setServices(filtered);
       setLoading(false);
+      setRefreshing(false);
     }
 
     setupQuery();
@@ -221,6 +229,7 @@ export default function ServicesScreen() {
     selectedProblem,
     coords,
     country,
+    refreshTrigger,
   ]);
 
   const loadMore = async () => {
@@ -355,17 +364,11 @@ export default function ServicesScreen() {
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setRefreshing(true);
-    // The setupQuery in useEffect triggers when these deps change.
-    // If we want a true refresh, we can toggle or just force it.
-    // For now, let's just trigger a re-run of the nearest logic if active
-    // or just wait for the effect to finish if we add a refresh trigger.
-    // For simplicity, let's just re-set the state to trigger the effect.
-    setActiveFilter((prev) => (prev === 'Nearest' ? 'Nearest' : prev));
-    setRefreshing(false);
+    setRefreshTrigger((prev) => prev + 1);
   }, []);
 
   const renderServiceItem = useCallback(
-    ({ item, index }: { item: ServiceProvider; index: number }) => {
+    ({ item }: { item: ServiceProvider }) => {
       let displayDistance = 'Nearby';
       if (coords && item.location?.latitude && item.location?.longitude) {
         const dist = calculateDistance(
@@ -374,25 +377,26 @@ export default function ServicesScreen() {
           item.location.latitude,
           item.location.longitude,
         );
-        displayDistance = dist < 1 ? 'Under 1km' : `${dist.toFixed(1)}km`;
+        displayDistance = dist < 1 ? 'Under 1 km' : `${dist.toFixed(1)} km`;
       }
 
       return (
-        <View>
-          <ServiceListCard
+        <View style={styles.gridItem}>
+          <ServiceCard
             id={item.id}
             name={item.name}
             role={item.primaryProfession || 'Professional'}
-            rating={item.rating || 0}
-            isVerified={item.isVerified}
             distance={displayDistance}
-            startingPrice={
+            price={
               item.pricing?.baseRate
                 ? `LKR ${item.pricing.baseRate}/hr`
-                : 'LKR 1,500/hr'
+                : 'Contact for price'
             }
             imageUrl={item.imageUrl}
             availabilityStatus={item.availabilityStatus}
+            rating={item.rating}
+            reviewCount={item.reviewCount}
+            isVerified={item.isVerified}
           />
         </View>
       );
@@ -416,30 +420,16 @@ export default function ServicesScreen() {
   );
 
   return (
-    <ThemedView style={[styles.container]}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Search Header */}
-        <View style={styles.header}>
-          <View
-            style={[
-              styles.searchContainer,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}>
-            <Feather name='search' size={18} color={theme.accent} />
-            <TextInput
-              placeholder='Search services...'
-              placeholderTextColor={theme.subtext}
-              style={[styles.searchInput, { color: theme.text }]}
-              value={searchText}
-              onChangeText={setSearchText}
-            />
-            {searchText !== '' && (
-              <TouchableOpacity onPress={() => setSearchText('')}>
-                <Feather name='x-circle' size={18} color={theme.subtext} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+    <ScreenShell>
+      <ScreenHeader title='Services' subtitle='Find trusted pros near you' />
+
+      <View style={styles.searchWrap}>
+        <SearchField
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder='Search services...'
+        />
+      </View>
 
         {/* Rapid Problem Switcher */}
         <View style={styles.problemSwitcher}>
@@ -459,7 +449,7 @@ export default function ServicesScreen() {
                     {
                       backgroundColor:
                         selectedProblem?.slug === prob.slug
-                          ? prob.color || theme.text
+                          ? theme.text
                           : theme.card,
                       borderColor: theme.border,
                     },
@@ -469,8 +459,8 @@ export default function ServicesScreen() {
                     size={14}
                     color={
                       selectedProblem?.slug === prob.slug
-                        ? '#FFFFFF'
-                        : prob.color || theme.accent
+                        ? theme.onAccent
+                        : theme.text
                     }
                   />
                   <ThemedText
@@ -479,7 +469,7 @@ export default function ServicesScreen() {
                       {
                         color:
                           selectedProblem?.slug === prob.slug
-                            ? '#FFFFFF'
+                            ? theme.onAccent
                             : theme.text,
                       },
                     ]}>
@@ -551,7 +541,7 @@ export default function ServicesScreen() {
                   style={[
                     styles.filterChip,
                     {
-                      backgroundColor: theme.accent,
+                      backgroundColor: theme.text,
                       borderColor: theme.border,
                     },
                   ]}>
@@ -588,7 +578,7 @@ export default function ServicesScreen() {
                   style={[
                     styles.filterChip,
                     {
-                      backgroundColor: theme.accent,
+                      backgroundColor: theme.text,
                       borderColor: theme.border,
                     },
                   ]}>
@@ -640,14 +630,19 @@ export default function ServicesScreen() {
         {/* Services List */}
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size='large' color={theme.accent} />
+            <ActivityIndicator size='large' color={theme.text} />
           </View>
         ) : (
           <FlatList
             data={filteredServices}
             renderItem={renderServiceItem}
             keyExtractor={keyExtractor}
-            contentContainerStyle={styles.listContent}
+            numColumns={2}
+            columnWrapperStyle={styles.columnWrapper}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: contentBottom },
+            ]}
             showsVerticalScrollIndicator={false}
             initialNumToRender={8}
             maxToRenderPerBatch={10}
@@ -657,7 +652,7 @@ export default function ServicesScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={theme.accent}
+                tintColor={theme.text}
               />
             }
             onEndReached={loadMore}
@@ -665,14 +660,13 @@ export default function ServicesScreen() {
             ListFooterComponent={
               loadingMore ? (
                 <View style={{ paddingVertical: 20 }}>
-                  <ActivityIndicator size='small' color={theme.accent} />
+                  <ActivityIndicator size='small' color={theme.text} />
                 </View>
               ) : null
             }
             ListEmptyComponent={listEmptyComponent}
           />
         )}
-      </SafeAreaView>
 
       <AppBottomSheet ref={bottomSheetRef} snapPoints={['90%']}>
         <FilterSheet
@@ -693,53 +687,28 @@ export default function ServicesScreen() {
           }}
         />
       </AppBottomSheet>
-    </ThemedView>
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    fontWeight: '500',
+  searchWrap: {
+    paddingHorizontal: Layout.screenPadding,
+    marginBottom: 12,
   },
   problemSwitcher: {
     marginBottom: 12,
   },
   problemScroll: {
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.screenPadding,
     gap: 8,
   },
   problemMiniChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: Layout.chipRadius,
     borderWidth: 1,
     gap: 6,
   },
@@ -751,7 +720,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   filterScroll: {
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.screenPadding,
     gap: 8,
   },
   filterChip: {
@@ -759,7 +728,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: Layout.chipRadius,
     borderWidth: 1,
   },
   filterText: {
@@ -767,8 +736,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingTop: 4,
+  },
+  columnWrapper: {
+    gap: Layout.itemGap,
+    paddingHorizontal: Layout.screenPadding,
+    marginBottom: Layout.itemGap,
+  },
+  gridItem: {
+    flex: 1,
   },
   center: {
     flex: 1,

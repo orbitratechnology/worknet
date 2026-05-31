@@ -1,7 +1,10 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { StackHeader } from '@/components/ui/stack-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
 import { Feather, FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
@@ -15,15 +18,13 @@ import {
   StyleSheet,
   TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { signUp, signInWithGoogle } = useAuth();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const { contentBottom } = useScreenInsets();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -82,31 +83,18 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            style={({ pressed }) => [styles.backBtn, { opacity: 1 }]}>
-            <Feather name='chevron-left' size={28} color={theme.text} />
-          </Pressable>
-          <ThemedText style={styles.headerTitle} type='defaultSemiBold'>
-            Sign Up
-          </ThemedText>
-          <View style={styles.backBtn} />
-        </View>
+    <ScreenShell>
+      <StackHeader title='Sign Up' />
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-            contentInsetAdjustmentBehavior='automatic'>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: contentBottom + 24 },
+          ]}>
             <View style={styles.logoSection}>
               <Image
                 source={require('@/assets/images/adaptive-icon.png')}
@@ -335,56 +323,34 @@ export default function RegisterScreen() {
 
             {/* Footer */}
             <View style={styles.footer}>
-              <ThemedText style={{ color: theme.subtext }}>
-                Already have an account?{' '}
-              </ThemedText>
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push('/login');
-                }}
-                style={({ pressed }) => [{ opacity: 1 }]}>
-                <ThemedText
-                  style={[styles.logInText, { color: theme.accent }]}
-                  type='defaultSemiBold'>
-                  Log In
+              <View style={styles.signUpRow}>
+                <ThemedText style={{ color: theme.subtext }}>
+                  Already have an account?{' '}
                 </ThemedText>
-              </Pressable>
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push('/login');
+                  }}>
+                  <ThemedText
+                    style={[styles.logInText, { color: theme.accent }]}
+                    type='defaultSemiBold'>
+                    Log In
+                  </ThemedText>
+                </Pressable>
+              </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </ThemedView>
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    height: 56,
-  },
-  backBtn: {
-    width: 48,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-  },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
+    paddingHorizontal: Layout.screenPadding + 4,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
   logoSection: {
     alignItems: 'center',
@@ -424,10 +390,10 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: Layout.inputRadius,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
-    paddingLeft: 16, // Will adjust if icon is present
-    height: 56,
+    height: Layout.inputHeight + 4,
     fontSize: 15,
   },
   inputIcon: {
@@ -444,15 +410,12 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   createBtn: {
-    height: 56,
-    borderRadius: 16,
+    height: Layout.inputHeight + 4,
+    borderRadius: Layout.inputRadius,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
-    elevation: 4,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
   },
   createBtnText: {
     fontSize: 16,
@@ -488,9 +451,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
     marginTop: 40,
+    alignItems: 'center',
+  },
+  signUpRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   logInText: {

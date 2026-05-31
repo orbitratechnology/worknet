@@ -7,11 +7,11 @@ export default ({ config }) => ({
   icon: './assets/images/icon.png',
   scheme: 'worknet',
   userInterfaceStyle: 'automatic',
+  buildCacheProvider: 'eas',
   jsEngine: 'hermes',
   ios: {
     ...config.ios,
     bundleIdentifier: 'com.orbitra.worknet',
-    jsEngine: 'jsc',
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
     },
@@ -67,7 +67,7 @@ export default ({ config }) => ({
   ],
   experiments: {
     typedRoutes: true,
-    reactCompiler: true,
+    // reactCompiler: true,
   },
   extra: {
     ...config.extra,

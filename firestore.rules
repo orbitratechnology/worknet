@@ -12,10 +12,9 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Users: Private profile data
+    // Users: owner-only access to private profile data
     match /users/{userId} {
-      allow read: if isAuthenticated(); // Allow other users to see basic info (names/photos)
-      allow write: if isOwner(userId);
+      allow read, write: if isOwner(userId);
 
       // User sessions: Strictly private
       match /sessions/{sessionId} {
