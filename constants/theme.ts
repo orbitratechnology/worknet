@@ -20,10 +20,13 @@ const tintColorDark = '#FAFAFA';
 export const Layout = {
   screenPadding: 20,
   sectionGap: 24,
-  itemGap: 12,
+  itemGap: 10,
   cardRadius: 20,
   chipRadius: 999,
+  /** Pill radius for search bars and primary CTAs */
   inputRadius: 999,
+  /** Standard text field corner radius */
+  fieldRadius: 12,
   inputHeight: 52,
   minTouch: 44,
   tabBarInset: 88,

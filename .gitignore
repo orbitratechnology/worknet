@@ -75,6 +75,7 @@ logs/
 
 .vscode/
 .windsurf/
+.agents/
 .agent/
 .idea/
 
@@ -91,5 +92,3 @@ google-services.json
 # RNSEC
 rnsec-report.html
 rnsec-report.json
-
-###

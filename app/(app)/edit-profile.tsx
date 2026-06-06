@@ -5,7 +5,7 @@ import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useTheme } from '@/hooks/use-theme';
-import { uploadFile } from '@/lib/storage';
+import { uploadLocalFile } from '@/lib/storage';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
@@ -62,7 +62,7 @@ export default function EditProfileScreen() {
         const extension = uri.split('.').pop();
         const path = `profile_photos/${user?.uid}/${Date.now()}.${extension}`;
 
-        const downloadUrl = await uploadFile(uri, path);
+        const downloadUrl = await uploadLocalFile(uri, path);
         setPhotoUrl(downloadUrl);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -106,7 +106,7 @@ export default function EditProfileScreen() {
 
   return (
     <ScreenShell>
-      <StackHeader title='Edit Profile' backIcon='x' border />
+      <StackHeader title='Edit Profile' border />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: Layout.inputRadius,
+    borderRadius: Layout.fieldRadius,
     borderCurve: 'continuous',
     paddingHorizontal: 16,
     height: Layout.inputHeight + 2,
@@ -309,6 +309,7 @@ const styles = StyleSheet.create({
     height: 120,
     paddingTop: 16,
     textAlignVertical: 'top',
+    borderRadius: Layout.fieldRadius,
   },
   charCount: {
     fontSize: 12,

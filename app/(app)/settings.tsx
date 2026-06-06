@@ -5,10 +5,11 @@ import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useTheme } from '@/hooks/use-theme';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/auth';
+import { db } from '@/lib/firebase';
 import { Feather } from '@expo/vector-icons';
-import { deleteUser } from 'firebase/auth';
-import { deleteDoc, doc } from 'firebase/firestore';
+import { deleteUser } from '@react-native-firebase/auth';
+import { deleteDoc, doc } from '@react-native-firebase/firestore';
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 

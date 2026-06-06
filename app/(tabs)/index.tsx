@@ -1,4 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
+import { HomeBanner } from '@/components/ui/home-banner';
 import { Problems } from '@/components/ui/problems';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { SearchField } from '@/components/ui/search-field';
@@ -8,42 +9,28 @@ import { TopBar } from '@/components/ui/top-bar';
 import { Layout } from '@/constants/theme';
 import { useLocation } from '@/context/location';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
-import { useServiceProviders } from '@/hooks/use-service-providers';
-import { calculateDistance } from '@/lib/geo';
-import { ServiceProvider } from '@/types/database';
+import {
+  sortModeFromChip,
+  useMatchedProviders,
+} from '@/hooks/use-matched-providers';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 
-function formatProviderPrice(item: ServiceProvider) {
-  return item.pricing?.baseRate
-    ? `LKR ${item.pricing.baseRate}/hr`
-    : 'Contact for price';
-}
-
-function formatProviderDistance(
-  item: ServiceProvider,
-  coords: { latitude: number; longitude: number } | null,
-) {
-  if (!coords || !item.location?.latitude || !item.location?.longitude) {
-    return 'Nearby';
-  }
-  const dist = calculateDistance(
-    coords.latitude,
-    coords.longitude,
-    item.location.latitude,
-    item.location.longitude,
-  );
-  return dist < 1 ? 'Under 1 km' : `${dist.toFixed(1)} km`;
+function formatProviderPrice(baseRate?: number) {
+  return baseRate ? `LKR ${baseRate}/hr` : 'Contact for price';
 }
 
 export default function HomeScreen() {
   const router = useRouter();
   const { coords } = useLocation();
   const { contentBottom } = useScreenInsets({ tabBar: true });
-  const { providers: nearbyServices } = useServiceProviders({
+  const { providers: nearbyServices, loading } = useMatchedProviders({
+    coords,
     onlyAvailable: true,
-    limitCount: 10,
+    sortMode: sortModeFromChip('Best Match'),
+    fetchLimit: 10,
+    maxDistanceKm: 25,
   });
 
   const handleSearchPress = React.useCallback(() => {
@@ -51,23 +38,30 @@ export default function HomeScreen() {
   }, [router]);
 
   const renderNearbyCard = React.useCallback(
-    (item: ServiceProvider) => (
+    (item: (typeof nearbyServices)[number]) => (
       <View style={styles.gridItem}>
         <ServiceCard
           id={item.id}
           name={item.name}
-          role={item.primaryProfession || 'General'}
-          distance={formatProviderDistance(item, coords)}
-          price={formatProviderPrice(item)}
+          role={item.primaryProfession || 'Worker'}
+          distance={
+            item.distance !== undefined
+              ? item.distance < 1
+                ? 'Under 1 km'
+                : `${item.distance.toFixed(1)} km`
+              : 'Nearby'
+          }
+          price={formatProviderPrice(item.pricing?.baseRate)}
           imageUrl={item.imageUrl || ''}
           availabilityStatus={item.availabilityStatus}
           rating={item.rating}
           reviewCount={item.reviewCount}
-          isVerified={item.isVerified}
+          matchReason={item.matchReason}
+          showSave
         />
       </View>
     ),
-    [coords],
+    [],
   );
 
   return (
@@ -89,6 +83,7 @@ export default function HomeScreen() {
               />
             </View>
 
+            <HomeBanner />
             <Problems />
 
             <SectionHeader
@@ -96,15 +91,17 @@ export default function HomeScreen() {
               onActionPress={() => router.push('/(tabs)/services')}
             />
 
-            {nearbyServices.length === 0 ? (
+            {loading ? (
+              <ActivityIndicator style={{ marginVertical: 32 }} />
+            ) : nearbyServices.length === 0 ? (
               <View style={styles.emptyNearby}>
                 <ThemedText style={styles.emptyText} selectable>
-                  No providers nearby yet. Try expanding your search.
+                  No workers nearby yet. Try expanding your search.
                 </ThemedText>
               </View>
             ) : (
               <View style={styles.nearbyGrid}>
-                {nearbyServices.map((item) => (
+                {nearbyServices.slice(0, 6).map((item) => (
                   <React.Fragment key={item.id}>
                     {renderNearbyCard(item)}
                   </React.Fragment>
@@ -131,7 +128,7 @@ const styles = StyleSheet.create({
   nearbyGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: Layout.screenPadding,
+    paddingHorizontal: 10,
     gap: Layout.itemGap,
   },
   gridItem: {

@@ -1,24 +1,20 @@
 import { useAuth } from '@/context/auth';
-import { useRouter } from 'expo-router';
+import { useAuthGate } from '@/context/auth-gate';
 import { useCallback } from 'react';
 
 export function useRequireAuth() {
   const { user } = useAuth();
-  const router = useRouter();
+  const { openSignInSheet } = useAuthGate();
 
   const requireAuth = useCallback(
     (message = 'Sign in to continue') => {
       if (user) {
         return true;
       }
-
-      router.push({
-        pathname: '/login',
-        params: { message },
-      });
+      openSignInSheet(message);
       return false;
     },
-    [router, user],
+    [user, openSignInSheet],
   );
 
   return { user, requireAuth, isAuthenticated: !!user };

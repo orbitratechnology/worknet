@@ -58,7 +58,7 @@ export default function ExploreScreen() {
       }
       router.push({
         pathname: '/(tabs)/services',
-        params: { searchText: item.name },
+        params: { professionId: item.id },
       });
     },
     [router],

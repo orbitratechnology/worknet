@@ -1,13 +1,11 @@
-import { Colors } from '@/constants/theme';
+import { BottomSheetHeader } from '@/components/ui/bottom-sheet-header';
+import { HapticPressable } from '@/components/ui/haptic-pressable';
+import { Layout } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import React, { useState } from 'react';
-import {
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  useColorScheme,
-} from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../themed-text';
 
 export interface FilterOptions {
@@ -23,85 +21,97 @@ export interface FilterSheetProps {
   initialFilters?: FilterOptions;
 }
 
+const SORT_OPTIONS = [
+  { label: 'Best Match', icon: 'zap' },
+  { label: 'Nearest', icon: 'navigation' },
+  { label: 'Highest Rating', icon: 'star' },
+  { label: 'Most Experienced', icon: 'award' },
+] as const;
+
+const PRICE_OPTIONS = ['All', '< LKR 1k', 'LKR 1k–3k', '> LKR 3k'] as const;
+
 export function FilterSheet({
   onApply,
-  onClose,
   initialFilters,
 }: FilterSheetProps) {
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
   const [sortBy, setSortBy] = useState(initialFilters?.sortBy || 'Nearest');
   const [rating, setRating] = useState(initialFilters?.rating || '4.0 & Up');
   const [distance, setDistance] = useState<number>(
-    typeof initialFilters?.distance === 'number' ? initialFilters.distance : 15
+    typeof initialFilters?.distance === 'number' ? initialFilters.distance : 15,
   );
   const [priceRange, setPriceRange] = useState(
-    initialFilters?.priceRange || 'All'
+    initialFilters?.priceRange || 'All',
   );
 
+  const reset = () => {
+    setSortBy('Nearest');
+    setRating('4.0 & Up');
+    setDistance(15);
+    setPriceRange('All');
+  };
+
   const handleApply = () => {
-    onApply({
-      sortBy,
-      rating,
-      distance,
-      priceRange,
-    });
+    onApply({ sortBy, rating, distance, priceRange });
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText style={styles.title} type='defaultSemiBold'>
-          Filter & Sort
-        </ThemedText>
-        <TouchableOpacity
-          onPress={() => {
-            setSortBy('Nearest');
-            setRating('4.0 & Up');
-            setDistance(15);
-            setPriceRange('All');
-          }}>
-          <ThemedText style={[styles.resetText, { color: theme.accent }]}>
-            Reset
-          </ThemedText>
-        </TouchableOpacity>
-      </View>
+      <BottomSheetHeader
+        title='Filter & Sort'
+        actionLabel='Reset'
+        onAction={reset}
+      />
 
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle} type='defaultSemiBold'>
-          Sort By
+          Sort by
         </ThemedText>
-        {[
-          { label: 'Nearest', icon: 'navigation' },
-          { label: 'Highest Rating', icon: 'star' },
-          { label: 'Most Experienced', icon: 'award' },
-        ].map((item) => (
-          <TouchableOpacity
-            key={item.label}
-            style={[styles.optionRow, { borderBottomColor: theme.border }]}
-            onPress={() => setSortBy(item.label)}>
-            <View style={styles.optionLeft}>
-              <Feather
-                name={item.icon as any}
-                size={20}
-                color={theme.subtext}
-              />
-              <ThemedText style={styles.optionLabel}>{item.label}</ThemedText>
-            </View>
-            <View
-              style={[
-                styles.radio,
-                { borderColor: theme.border },
-                sortBy === item.label && { borderColor: theme.accent },
-              ]}>
-              {sortBy === item.label && (
+        {SORT_OPTIONS.map((item) => {
+          const selected = sortBy === item.label;
+          return (
+            <Pressable
+              key={item.label}
+              style={({ pressed }) => [
+                styles.optionRow,
+                {
+                  borderBottomColor: theme.border,
+                  backgroundColor: selected ? theme.muted : 'transparent',
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}
+              onPress={() => setSortBy(item.label)}>
+              <View style={styles.optionLeft}>
                 <View
-                  style={[styles.radioInner, { backgroundColor: theme.accent }]}
-                />
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
+                  style={[
+                    styles.optionIcon,
+                    { backgroundColor: theme.muted },
+                  ]}>
+                  <Feather
+                    name={item.icon}
+                    size={18}
+                    color={theme.subtext}
+                  />
+                </View>
+                <ThemedText style={styles.optionLabel}>{item.label}</ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.radio,
+                  { borderColor: selected ? theme.accent : theme.border },
+                ]}>
+                {selected ? (
+                  <View
+                    style={[
+                      styles.radioInner,
+                      { backgroundColor: theme.accent },
+                    ]}
+                  />
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View style={styles.section}>
@@ -110,125 +120,126 @@ export function FilterSheet({
             Distance
           </ThemedText>
           <View
-            style={[
-              styles.distanceBadge,
-              { backgroundColor: theme.accent + '20' },
-            ]}>
+            style={[styles.distanceBadge, { backgroundColor: theme.muted }]}>
             <ThemedText
-              style={[styles.distanceBadgeText, { color: theme.accent }]}>
+              style={[styles.distanceBadgeText, { color: theme.text }]}>
               {distance} km
             </ThemedText>
           </View>
         </View>
-        <View style={styles.sliderContainer}>
-          <Slider
-            style={{ width: '100%', height: 40 }}
-            minimumValue={1}
-            maximumValue={50}
-            step={1}
-            value={distance}
-            onValueChange={setDistance}
-            minimumTrackTintColor={theme.accent}
-            maximumTrackTintColor={theme.border}
-            thumbTintColor={theme.accent}
-          />
-          <View style={styles.sliderLabels}>
-            <ThemedText style={[styles.sliderLabel, { color: theme.subtext }]}>
-              1 km
-            </ThemedText>
-            <ThemedText style={[styles.sliderLabel, { color: theme.subtext }]}>
-              50 km
-            </ThemedText>
-          </View>
+        <Slider
+          style={styles.slider}
+          minimumValue={1}
+          maximumValue={50}
+          step={1}
+          value={distance}
+          onValueChange={setDistance}
+          minimumTrackTintColor={theme.accent}
+          maximumTrackTintColor={theme.border}
+          thumbTintColor={theme.accent}
+        />
+        <View style={styles.sliderLabels}>
+          <ThemedText style={[styles.sliderLabel, { color: theme.subtext }]}>
+            1 km
+          </ThemedText>
+          <ThemedText style={[styles.sliderLabel, { color: theme.subtext }]}>
+            50 km
+          </ThemedText>
         </View>
       </View>
 
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle} type='defaultSemiBold'>
-          Price Range
+          Price range
         </ThemedText>
         <View style={styles.chipsRow}>
-          {['All', '< $50', '$50 - $100', '> $100'].map((p) => (
-            <TouchableOpacity
-              key={p}
-              style={[
-                styles.chip,
-                { backgroundColor: theme.card, borderColor: theme.border },
-                priceRange === p && {
-                  backgroundColor: theme.accent,
-                  borderColor: theme.accent,
-                },
-              ]}
-              onPress={() => setPriceRange(p)}>
-              <ThemedText
+          {PRICE_OPTIONS.map((p) => {
+            const selected = priceRange === p;
+            return (
+              <HapticPressable
+                key={p}
+                onPress={() => setPriceRange(p)}
                 style={[
-                  styles.chipText,
-                  priceRange === p && { color: theme.onAccent },
+                  styles.chip,
+                  {
+                    backgroundColor: selected ? theme.accent : theme.surface,
+                    borderColor: selected ? theme.accent : theme.border,
+                  },
                 ]}>
-                {p}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
+                <ThemedText
+                  style={[
+                    styles.chipText,
+                    { color: selected ? theme.onAccent : theme.text },
+                  ]}>
+                  {p}
+                </ThemedText>
+              </HapticPressable>
+            );
+          })}
         </View>
       </View>
 
-      <TouchableOpacity
-        style={[styles.applyButton, { backgroundColor: theme.accent }]}
-        onPress={handleApply}>
+      <HapticPressable
+        onPress={handleApply}
+        style={({ pressed }) => [
+          styles.applyButton,
+          { backgroundColor: theme.accent, opacity: pressed ? 0.9 : 1 },
+        ]}>
         <ThemedText
           style={[styles.applyButtonText, { color: theme.onAccent }]}
           type='defaultSemiBold'>
           Apply Filters
         </ThemedText>
-      </TouchableOpacity>
+      </HapticPressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    paddingTop: 0,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 20,
-  },
-  resetText: {
-    fontWeight: '600',
+    paddingHorizontal: Layout.screenPadding,
+    paddingBottom: Layout.screenPadding,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 16,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   optionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 1,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: 8,
+    borderCurve: 'continuous',
+    minHeight: Layout.minTouch,
   },
   optionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
+  optionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   optionLabel: {
     fontSize: 15,
+    fontWeight: '500',
   },
   radio: {
     width: 22,
@@ -247,82 +258,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
+    borderCurve: 'continuous',
   },
   distanceBadgeText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  sliderContainer: {
-    paddingTop: 10,
-  },
-  track: {
-    height: 4,
-    borderRadius: 2,
-  },
-  thumb: {
-    position: 'absolute',
-    top: 2,
-    left: '30%',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 4,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
+  slider: {
+    width: '100%',
+    height: 40,
   },
   sliderLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: 4,
   },
   sliderLabel: {
     fontSize: 12,
   },
   chipsRow: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
     borderWidth: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
-    gap: 8,
+    borderRadius: Layout.chipRadius,
+    borderCurve: 'continuous',
+    minHeight: 40,
+    justifyContent: 'center',
   },
   chipText: {
     fontSize: 14,
-    fontWeight: '500',
-  },
-  chipTextActive: {
-    color: '#fff',
+    fontWeight: '600',
   },
   applyButton: {
-    height: 56,
-    borderRadius: 16,
-    flexDirection: 'row',
+    minHeight: Layout.minTouch + 12,
+    borderRadius: Layout.chipRadius,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 8,
+    marginTop: 4,
   },
   applyButtonText: {
-    color: '#fff',
     fontSize: 16,
-  },
-  countBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  countText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
 });

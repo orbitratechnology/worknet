@@ -1,23 +1,24 @@
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/auth';
+import { db } from '@/lib/firebase';
 import { logger } from '@/lib/logger';
 import { UserProfile } from '@/types/user';
-import Constants from 'expo-constants';
-import * as Crypto from 'expo-crypto';
-import * as SecureStore from 'expo-secure-store';
 import {
   createUserWithEmailAndPassword,
-  signOut as firebaseSignOut,
   GoogleAuthProvider,
   onAuthStateChanged,
-  reload,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithCredential,
   signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
   updateProfile,
-  User,
-} from 'firebase/auth';
-import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+  reload,
+  type FirebaseAuthTypes,
+} from '@react-native-firebase/auth';
+import { doc, onSnapshot, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
+import Constants from 'expo-constants';
+import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import React, {
   createContext,
   useContext,
@@ -28,6 +29,8 @@ import React, {
 import { Platform } from 'react-native';
 import { GoogleAuth } from 'react-native-google-auth';
 import { Toast } from 'toastify-react-native';
+
+type User = FirebaseAuthTypes.User;
 
 interface AuthContextType {
   user: User | null;
@@ -50,14 +53,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize Google Auth
   useEffect(() => {
     GoogleAuth.configure({
       webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
     });
   }, []);
 
-  // Auth User Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
       setUser(nextUser);
@@ -70,16 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // Firestore Profile Listener
   useEffect(() => {
     if (!user) return;
 
     const userDocRef = doc(db, 'users', user.uid);
     const unsubscribe = onSnapshot(
       userDocRef,
-      (doc) => {
-        if (doc.exists()) {
-          setUserProfile(doc.data() as UserProfile);
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setUserProfile(snapshot.data() as UserProfile);
         } else {
           setUserProfile(null);
         }
@@ -94,7 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, [user]);
 
-  // Session Recording Logic
   const recordSession = async (currUser: User) => {
     try {
       const sessionId =
@@ -140,7 +139,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password,
         );
 
-        // Update Auth Profile
         try {
           const sanitizedName = fullName
             .trim()
@@ -151,7 +149,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           logger.error('Failed to update auth profile', err);
         }
 
-        // Create Firestore Profile
         try {
           await setDoc(
             doc(db, 'users', cred.user.uid),
@@ -189,7 +186,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
             const cred = await signInWithCredential(auth, credential);
 
-            // Ensure Firestore profile exists
             try {
               await setDoc(
                 doc(db, 'users', cred.user.uid),
@@ -208,11 +204,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             await recordSession(cred.user);
             return cred;
-          } else if (response.type === 'cancelled') {
-            throw new Error('Sign-in cancelled');
-          } else {
-            throw new Error('Google Sign-In failed');
           }
+          if (response.type === 'cancelled') {
+            throw new Error('Sign-in cancelled');
+          }
+          throw new Error('Google Sign-In failed');
         } catch (error) {
           logger.error('Google Sign-In Error:', error);
           throw error;
@@ -243,7 +239,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           { merge: true },
         );
 
-        // Also update Firebase Auth profile if name or photoUrl changed
         if (data.name || data.photoUrl) {
           await updateProfile(user, {
             displayName: data.name || user.displayName,

@@ -10,6 +10,7 @@ import { useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/context/auth';
+import { AuthGateProvider } from '@/context/auth-gate';
 import { getStatusBarFallback } from '@/lib/safe-area';
 import { LocationProvider } from '@/context/location';
 import SplashScreenController from './splash';
@@ -29,6 +30,7 @@ export default function RootLayout() {
         }}>
         <BottomSheetModalProvider>
           <AuthProvider>
+            <AuthGateProvider>
             <LocationProvider>
               <ThemeProvider
                 value={
@@ -39,6 +41,7 @@ export default function RootLayout() {
                 <StatusBar style='auto' />
               </ThemeProvider>
             </LocationProvider>
+            </AuthGateProvider>
           </AuthProvider>
         </BottomSheetModalProvider>
       </SafeAreaProvider>

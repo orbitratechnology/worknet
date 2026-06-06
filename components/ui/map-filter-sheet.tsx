@@ -1,18 +1,15 @@
+import { BottomSheetHeader } from '@/components/ui/bottom-sheet-header';
+import { SearchField } from '@/components/ui/search-field';
 import { PROBLEMS } from '@/constants/problems';
-import { Colors } from '@/constants/theme';
+import { Layout } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
+import { useTheme } from '@/hooks/use-theme';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import * as Haptics from 'expo-haptics';
 import React, { useMemo, useState } from 'react';
-import {
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useColorScheme,
-} from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../themed-text';
-import { ThemedView } from '../themed-view';
 
 interface MapFilterSheetProps {
   selectedProblem: string | null;
@@ -29,8 +26,7 @@ export function MapFilterSheet({
   onSelectWorkerType,
   onClose,
 }: MapFilterSheetProps) {
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'professions' | 'problems'>(
     'professions',
@@ -43,28 +39,39 @@ export function MapFilterSheet({
       return WORKER_TYPES.filter((type) =>
         type.name.toLowerCase().includes(query),
       );
-    } else {
-      return PROBLEMS.filter((prob) => prob.name.toLowerCase().includes(query));
     }
+    return PROBLEMS.filter((prob) => prob.name.toLowerCase().includes(query));
   }, [searchQuery, activeTab]);
 
-  const renderItem = ({ item }: { item: any }) => {
+  const clearAll = () => {
+    onSelectProblem(null);
+    onSelectWorkerType(null);
+    onClose();
+  };
+
+  type FilterItem = (typeof WORKER_TYPES)[number] | (typeof PROBLEMS)[number];
+
+  const renderItem = ({ item }: { item: FilterItem }) => {
     const isSelected =
       activeTab === 'professions'
         ? selectedWorkerType === item.name
-        : selectedProblem === item.slug;
+        : selectedProblem === ('slug' in item ? item.slug : null);
 
     return (
-      <TouchableOpacity
-        style={[
+      <Pressable
+        style={({ pressed }) => [
           styles.itemRow,
-          { borderBottomColor: theme.border },
-          isSelected && { backgroundColor: theme.accent + '15' },
+          {
+            borderBottomColor: theme.border,
+            backgroundColor: isSelected ? theme.muted : 'transparent',
+            opacity: pressed ? 0.85 : 1,
+          },
         ]}
         onPress={() => {
+          Haptics.selectionAsync();
           if (activeTab === 'professions') {
             onSelectWorkerType(isSelected ? null : item.name);
-          } else {
+          } else if ('slug' in item) {
             onSelectProblem(isSelected ? null : item.slug);
           }
           onClose();
@@ -73,148 +80,124 @@ export function MapFilterSheet({
           <View
             style={[
               styles.iconContainer,
-              { backgroundColor: item.color + '20' },
+              { backgroundColor: (item.color ?? theme.accent) + '20' },
             ]}>
             <MaterialCommunityIcons
-              name={item.icon as any}
+              name={item.icon as never}
               size={20}
               color={item.color || theme.accent}
             />
           </View>
           <ThemedText style={styles.itemText}>{item.name}</ThemedText>
         </View>
-        {isSelected && <Feather name='check' size={20} color={theme.accent} />}
-      </TouchableOpacity>
+        {isSelected ? (
+          <Feather name='check' size={20} color={theme.accent} />
+        ) : null}
+      </Pressable>
     );
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.header}>
-        <ThemedText type='defaultSemiBold' style={styles.title}>
-          Search & Filter
-        </ThemedText>
-        <TouchableOpacity
-          onPress={() => {
-            onSelectProblem(null);
-            onSelectWorkerType(null);
-            onClose();
-          }}>
-          <ThemedText style={{ color: theme.accent }}>Clear All</ThemedText>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <BottomSheetHeader
+        title='Search & Filter'
+        actionLabel='Clear'
+        onAction={clearAll}
+      />
 
       <View
         style={[
           styles.tabContainer,
-          { backgroundColor: theme.card, borderColor: theme.border },
+          { backgroundColor: theme.muted, borderColor: theme.border },
         ]}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'professions' && { backgroundColor: theme.accent },
-          ]}
-          onPress={() => setActiveTab('professions')}>
-          <ThemedText
-            style={[
-              styles.tabText,
-              activeTab === 'professions' && { color: theme.onAccent },
-            ]}>
-            Professions
-          </ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'problems' && { backgroundColor: theme.accent },
-          ]}
-          onPress={() => setActiveTab('problems')}>
-          <ThemedText
-            style={[
-              styles.tabText,
-              activeTab === 'problems' && { color: theme.onAccent },
-            ]}>
-            Problems
-          </ThemedText>
-        </TouchableOpacity>
+        {(['professions', 'problems'] as const).map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <Pressable
+              key={tab}
+              style={[
+                styles.tab,
+                active && { backgroundColor: theme.accent },
+              ]}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setActiveTab(tab);
+                setSearchQuery('');
+              }}>
+              <ThemedText
+                style={[
+                  styles.tabText,
+                  { color: active ? theme.onAccent : theme.text },
+                ]}>
+                {tab === 'professions' ? 'Professions' : 'Problems'}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
       </View>
 
-      <View
-        style={[
-          styles.searchContainer,
-          { backgroundColor: theme.card, borderColor: theme.border },
-        ]}>
-        <Feather name='search' size={20} color={theme.subtext} />
-        <TextInput
-          placeholder={`Search ${activeTab}...`}
-          placeholderTextColor={theme.subtext}
-          style={[styles.searchInput, { color: theme.text }]}
+      <View style={styles.searchWrap}>
+        <SearchField
           value={searchQuery}
           onChangeText={setSearchQuery}
-          autoFocus={false}
+          placeholder={`Search ${activeTab}…`}
         />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Feather name='x-circle' size={18} color={theme.subtext} />
-          </TouchableOpacity>
-        )}
       </View>
 
       <BottomSheetFlatList
         data={filteredData}
-        keyExtractor={(item: any) => item.id}
+        keyExtractor={(item: { id: string }) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 20 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
+  container: {
+    flex: 1,
+    paddingHorizontal: Layout.screenPadding,
   },
-  title: { fontSize: 20 },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 15,
-  },
-  searchInput: { flex: 1, marginLeft: 10, fontSize: 16 },
   tabContainer: {
     flexDirection: 'row',
     padding: 4,
-    borderRadius: 12,
+    borderRadius: Layout.chipRadius,
+    borderCurve: 'continuous',
     borderWidth: 1,
-    marginBottom: 15,
+    marginBottom: 12,
   },
-  tab: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: Layout.chipRadius - 4,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    minHeight: Layout.minTouch - 4,
+    justifyContent: 'center',
+  },
   tabText: { fontSize: 14, fontWeight: '600' },
+  searchWrap: { marginBottom: 8 },
   listContent: { paddingBottom: 40 },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
+    paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    minHeight: Layout.minTouch + 4,
   },
   itemLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   iconContainer: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 10,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  itemText: { fontSize: 16, flex: 1 },
+  itemText: { fontSize: 16, flex: 1, fontWeight: '500' },
 });

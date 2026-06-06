@@ -1,4 +1,7 @@
-import { PROBLEMS } from '@/constants/problems';
+import {
+  EMERGENCY_PROBLEMS,
+  FEATURED_PROBLEMS,
+} from '@/constants/featured-problems';
 import { Layout } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,6 +11,45 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../themed-text';
 import { SectionHeader } from './section-header';
+
+function ProblemChip({
+  name,
+  icon,
+  slug,
+  onPress,
+}: {
+  name: string;
+  icon: string;
+  slug: string;
+  onPress: (slug: string) => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={() => onPress(slug)}
+      style={({ pressed }) => [
+        styles.categoryItem,
+        { opacity: pressed ? 0.85 : 1 },
+      ]}>
+      <View
+        style={[
+          styles.iconContainer,
+          { backgroundColor: theme.card, borderColor: theme.border },
+        ]}>
+        <MaterialCommunityIcons
+          name={icon as any}
+          size={26}
+          color={theme.text}
+        />
+      </View>
+      <ThemedText
+        numberOfLines={2}
+        style={[styles.categoryName, { color: theme.text }]}>
+        {name.split(' / ')[0]}
+      </ThemedText>
+    </Pressable>
+  );
+}
 
 export function Problems() {
   const theme = useTheme();
@@ -31,39 +73,39 @@ export function Problems() {
         title='What do you need?'
         onActionPress={() => handleProblemPress('explore')}
       />
+
+      <ThemedText style={[styles.emergencyLabel, { color: theme.error }]}>
+        Emergency
+      </ThemedText>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         decelerationRate='fast'>
-        {PROBLEMS.map((prob) => (
-          <Pressable
+        {EMERGENCY_PROBLEMS.map((prob) => (
+          <ProblemChip
             key={prob.id}
-            onPress={() => handleProblemPress(prob.slug)}
-            style={({ pressed }) => [
-              styles.categoryItem,
-              { opacity: pressed ? 0.85 : 1 },
-            ]}>
-            <View
-              style={[
-                styles.iconContainer,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                },
-              ]}>
-              <MaterialCommunityIcons
-                name={prob.icon as any}
-                size={26}
-                color={theme.text}
-              />
-            </View>
-            <ThemedText
-              numberOfLines={2}
-              style={[styles.categoryName, { color: theme.text }]}>
-              {prob.name.split(' / ')[0]}
-            </ThemedText>
-          </Pressable>
+            name={prob.name}
+            icon={prob.icon}
+            slug={prob.slug}
+            onPress={handleProblemPress}
+          />
+        ))}
+      </ScrollView>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        decelerationRate='fast'>
+        {FEATURED_PROBLEMS.map((prob) => (
+          <ProblemChip
+            key={prob.id}
+            name={prob.name}
+            icon={prob.icon}
+            slug={prob.slug}
+            onPress={handleProblemPress}
+          />
         ))}
       </ScrollView>
     </View>
@@ -74,9 +116,18 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: Layout.sectionGap,
   },
+  emergencyLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    paddingHorizontal: Layout.screenPadding,
+    marginBottom: 8,
+  },
   scrollContent: {
     paddingHorizontal: Layout.screenPadding,
     gap: 20,
+    marginBottom: 12,
   },
   categoryItem: {
     alignItems: 'center',

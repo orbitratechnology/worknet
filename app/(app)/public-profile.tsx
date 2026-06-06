@@ -1,17 +1,28 @@
 import { ThemedText } from '@/components/themed-text';
+import { ProfileAvatar } from '@/components/profile/profile-avatar';
+import { WorkSamplesCarousel } from '@/components/profile/work-samples-carousel';
+import { ReviewList } from '@/components/reviews/review-list';
+import {
+  WriteReviewSheet,
+  WriteReviewSheetRef,
+} from '@/components/reviews/write-review-sheet';
 import { StackHeader } from '@/components/ui/stack-header';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { cardShadow, Layout } from '@/constants/theme';
+import { formatLanguagesLabel } from '@/constants/worker-languages';
 import { db } from '@/lib/firebase';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuthGate } from '@/context/auth-gate';
+import { useAuth } from '@/context/auth';
+import { useSavedProviders } from '@/hooks/use-saved-providers';
+import { useProviderReviews } from '@/hooks/use-provider-reviews';
 import { ServiceProvider } from '@/types/database';
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
+import { doc, getDoc } from '@react-native-firebase/firestore';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,13 +33,9 @@ import {
   View,
 } from 'react-native';
 
-function StatColumn({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+const REVIEW_PREVIEW_COUNT = 2;
+
+function StatColumn({ label, value }: { label: string; value: string }) {
   const theme = useTheme();
   const colorScheme = useColorScheme() ?? 'light';
 
@@ -56,6 +63,11 @@ function StatColumn({
 export default function PublicProfileScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const providerId = typeof id === 'string' ? id : undefined;
+  const { user } = useAuth();
+  const { gateAction } = useAuthGate();
+  const { isSaved, toggleSave } = useSavedProviders();
+  const reviewSheetRef = useRef<WriteReviewSheetRef>(null);
   const theme = useTheme();
   const colorScheme = useColorScheme() ?? 'light';
   const { bottom } = useScreenInsets();
@@ -63,6 +75,17 @@ export default function PublicProfileScreen() {
   const [provider, setProvider] = useState<ServiceProvider | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const {
+    reviews,
+    refresh: refreshReviews,
+  } = useProviderReviews(providerId);
+
+  const hasUserReview = !!user && reviews.some((r) => r.userId === user.uid);
+  const previewReviews = useMemo(
+    () => reviews.slice(0, REVIEW_PREVIEW_COUNT),
+    [reviews],
+  );
 
   const handleWhatsApp = async () => {
     if (!provider) return;
@@ -75,7 +98,12 @@ export default function PublicProfileScreen() {
       return;
     }
     const cleanNumber = number.replace(/\D/g, '');
-    const url = `whatsapp://send?phone=${cleanNumber}`;
+    const city = provider.location?.homeCity ?? 'my area';
+    const profession = provider.primaryProfession ?? 'help';
+    const text = encodeURIComponent(
+      `Hi ${provider.name}, I found you on Worknet. I need help with ${profession} in ${city}. Are you available?`,
+    );
+    const url = `whatsapp://send?phone=${cleanNumber}&text=${text}`;
     try {
       const canOpen = await Linking.canOpenURL(url);
       if (canOpen) {
@@ -110,14 +138,14 @@ export default function PublicProfileScreen() {
   };
 
   const fetchProvider = useCallback(async () => {
-    if (!id) {
+    if (!providerId) {
       setLoading(false);
       setError('Missing provider ID.');
       return;
     }
     setError(null);
     try {
-      const docSnap = await getDoc(doc(db, 'service_providers', id as string));
+      const docSnap = await getDoc(doc(db, 'service_providers', providerId));
       if (docSnap.exists()) {
         setProvider({ id: docSnap.id, ...docSnap.data() } as ServiceProvider);
       } else {
@@ -130,7 +158,11 @@ export default function PublicProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [providerId]);
+
+  const refreshProfile = useCallback(async () => {
+    await Promise.all([fetchProvider(), refreshReviews()]);
+  }, [fetchProvider, refreshReviews]);
 
   useEffect(() => {
     fetchProvider();
@@ -172,20 +204,33 @@ export default function PublicProfileScreen() {
     );
   }
 
-  const heroImage =
+  const avatarImage =
     provider.imageUrl ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(
       provider.name,
     )}&background=222222&color=FAF7F2&size=512&bold=true`;
   const isOnline = provider.availabilityStatus === 'online';
+  const reviewCount = provider.reviewCount ?? reviews.length;
 
   return (
     <ScreenShell>
       <StackHeader
-        title={provider.title || provider.name || 'Provider'}
+        title={provider.title || provider.name || 'Worker'}
         right={
-          <Pressable hitSlop={8} style={{ padding: 4 }}>
-            <Feather name='share-2' size={20} color={theme.text} />
+          <Pressable
+            hitSlop={8}
+            accessibilityRole='button'
+            accessibilityLabel={
+              isSaved(provider.id) ? 'Remove from saved' : 'Save worker'
+            }
+            onPress={() =>
+              gateAction('Sign in to save workers', () => toggleSave(provider.id))
+            }>
+            <Feather
+              name='heart'
+              size={20}
+              color={isSaved(provider.id) ? '#FF6B6B' : theme.text}
+            />
           </Pressable>
         }
       />
@@ -193,38 +238,19 @@ export default function PublicProfileScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.heroWrap, { backgroundColor: theme.muted }]}>
-          <Image
-            source={heroImage}
-            style={styles.heroImage}
-            contentFit='cover'
-            transition={300}
-          />
-          <View style={[styles.heroRating, { backgroundColor: theme.overlay }]}>
-            <Feather name='star' size={12} color='#FFFFFF' />
-            <ThemedText style={styles.heroRatingText} selectable>
-              {provider.rating.toFixed(1)}
-            </ThemedText>
-          </View>
-        </View>
-
         <View style={styles.content}>
+          <ProfileAvatar
+            name={provider.name}
+            imageUrl={avatarImage}
+            rating={provider.rating}
+            reviewCount={reviewCount}
+            isOnline={isOnline}
+          />
+
           <View style={styles.titleBlock}>
-            <View style={styles.nameRow}>
-              <ThemedText style={styles.providerName} type='title' selectable>
-                {provider.name}
-              </ThemedText>
-              {provider.isVerified ? (
-                <View
-                  style={[styles.verifiedBadge, { backgroundColor: theme.text }]}>
-                  <Feather name='check' size={10} color={theme.onAccent} />
-                  <ThemedText
-                    style={[styles.verifiedText, { color: theme.onAccent }]}>
-                    Verified
-                  </ThemedText>
-                </View>
-              ) : null}
-            </View>
+            <ThemedText style={styles.providerName} type='title' selectable>
+              {provider.name}
+            </ThemedText>
             <ThemedText
               style={[styles.providerRole, { color: theme.subtext }]}
               selectable>
@@ -235,7 +261,7 @@ export default function PublicProfileScreen() {
           <View style={styles.statsRow}>
             <StatColumn
               label='Experience'
-              value={`${provider.experienceYears || 0}+ yrs`}
+              value={`${provider.experienceYears || '0-1'} yrs`}
             />
             <StatColumn
               label='Location'
@@ -243,7 +269,7 @@ export default function PublicProfileScreen() {
             />
             <StatColumn
               label='Language'
-              value={provider.languages?.[0] || 'English'}
+              value={formatLanguagesLabel(provider.languages)}
             />
           </View>
 
@@ -280,6 +306,10 @@ export default function PublicProfileScreen() {
             </View>
           </View>
 
+          {provider.workSamples && provider.workSamples.length > 0 ? (
+            <WorkSamplesCarousel samples={provider.workSamples} />
+          ) : null}
+
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle} type='headline' selectable>
               About
@@ -311,7 +341,7 @@ export default function PublicProfileScreen() {
 
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle} type='headline' selectable>
-              Service area
+              Location
             </ThemedText>
             <View style={[styles.chip, { backgroundColor: theme.muted }]}>
               <Feather name='map-pin' size={12} color={theme.text} />
@@ -319,36 +349,10 @@ export default function PublicProfileScreen() {
                 {provider.location?.homeCity}
                 {provider.location?.country
                   ? `, ${provider.location.country}`
-                  : ''}{' '}
-                · {provider.serviceRadius || 25} km radius
+                  : ''}
               </ThemedText>
             </View>
           </View>
-
-          {provider.workSamples && provider.workSamples.length > 0 ? (
-            <View style={styles.section}>
-              <ThemedText style={styles.sectionTitle} type='headline' selectable>
-                Recent work
-              </ThemedText>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.portfolioScroll}>
-                {provider.workSamples.map((url, index) => (
-                  <Image
-                    key={`work-sample-${index}-${url}`}
-                    source={url}
-                    style={[
-                      styles.portfolioThumb,
-                      { backgroundColor: theme.muted },
-                    ]}
-                    contentFit='cover'
-                    transition={200}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          ) : null}
 
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle} type='headline' selectable>
@@ -386,9 +390,64 @@ export default function PublicProfileScreen() {
             )}
           </View>
 
+          <View style={styles.section}>
+            <View style={styles.reviewsHeader}>
+              <ThemedText style={styles.sectionTitle} type='headline' selectable>
+                Reviews
+              </ThemedText>
+              <View style={styles.reviewActions}>
+                {reviewCount > 0 ? (
+                  <Pressable
+                    accessibilityRole='button'
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(app)/provider-reviews',
+                        params: {
+                          id: provider.id,
+                          name: provider.name,
+                          rating: String(provider.rating),
+                        },
+                      })
+                    }>
+                    <ThemedText
+                      style={{ color: theme.accent, fontWeight: '600' }}>
+                      See all
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+                {!user ? (
+                  <Pressable
+                    onPress={() =>
+                      gateAction('Sign in to leave a review', () => {})
+                    }>
+                    <ThemedText
+                      style={{ color: theme.accent, fontWeight: '600' }}>
+                      Sign in
+                    </ThemedText>
+                  </Pressable>
+                ) : !hasUserReview ? (
+                  <Pressable onPress={() => reviewSheetRef.current?.open()}>
+                    <ThemedText
+                      style={{ color: theme.accent, fontWeight: '600' }}>
+                      Write review
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+            <ReviewList reviews={previewReviews} />
+          </View>
+
           <View style={{ height: 120 }} />
         </View>
       </ScrollView>
+
+      <WriteReviewSheet
+        ref={reviewSheetRef}
+        providerId={provider.id}
+        providerName={provider.name}
+        onSubmitted={refreshProfile}
+      />
 
       <View
         style={[
@@ -452,65 +511,25 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 120,
   },
-  heroWrap: {
-    width: '100%',
-    height: 280,
-    position: 'relative',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  heroRating: {
-    position: 'absolute',
-    bottom: 16,
-    left: Layout.screenPadding,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Layout.chipRadius,
-  },
-  heroRatingText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
   content: {
     paddingHorizontal: Layout.screenPadding,
-    paddingTop: 20,
+    paddingTop: 8,
     gap: Layout.sectionGap,
   },
   titleBlock: {
-    gap: 6,
-  },
-  nameRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: 4,
+    marginTop: -4,
   },
   providerName: {
     fontSize: 26,
     letterSpacing: -0.6,
+    textAlign: 'center',
   },
   providerRole: {
     fontSize: 15,
     fontWeight: '500',
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Layout.chipRadius,
-    gap: 4,
-  },
-  verifiedText: {
-    fontSize: 11,
-    fontWeight: '700',
+    textAlign: 'center',
   },
   statsRow: {
     flexDirection: 'row',
@@ -565,6 +584,16 @@ const styles = StyleSheet.create({
   section: {
     gap: 12,
   },
+  reviewsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
   sectionTitle: {
     letterSpacing: -0.3,
   },
@@ -589,16 +618,6 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     fontWeight: '600',
-  },
-  portfolioScroll: {
-    gap: 12,
-    paddingRight: Layout.screenPadding,
-  },
-  portfolioThumb: {
-    width: 140,
-    height: 140,
-    borderRadius: 16,
-    borderCurve: 'continuous',
   },
   serviceItem: {
     borderRadius: Layout.cardRadius,

@@ -8,7 +8,7 @@ import {
   query,
   QueryConstraint,
   where,
-} from 'firebase/firestore';
+} from '@react-native-firebase/firestore';
 import { useEffect, useState } from 'react';
 
 /**

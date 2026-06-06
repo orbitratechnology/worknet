@@ -8,7 +8,7 @@ import { getAuthErrorMessage } from '@/lib/auth-errors';
 import { Feather, FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -22,6 +22,10 @@ import {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { message: redirectMessage } = useLocalSearchParams<{
+    message?: string;
+    returnTo?: string;
+  }>();
   const { signIn, signInWithGoogle } = useAuth();
   const theme = useTheme();
   const { contentBottom } = useScreenInsets();
@@ -98,6 +102,18 @@ export default function LoginScreen() {
               </ThemedText>
             </View>
           </View>
+
+          {redirectMessage ? (
+            <View
+              style={[
+                styles.messageBanner,
+                { backgroundColor: theme.accent + '15', borderColor: theme.accent },
+              ]}>
+              <ThemedText style={[styles.messageBannerText, { color: theme.accent }]}>
+                {redirectMessage}
+              </ThemedText>
+            </View>
+          ) : null}
 
           {/* Form */}
           <View style={styles.form}>
@@ -313,6 +329,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
+  },
+  messageBanner: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  messageBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   form: {
     gap: 20,

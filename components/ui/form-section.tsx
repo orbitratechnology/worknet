@@ -10,36 +10,44 @@ type FormSectionProps = ViewProps & {
   title: string;
   icon?: keyof typeof Feather.glyphMap;
   children: React.ReactNode;
+  /** Plain = label group only, no card background (for wizards). */
+  variant?: 'card' | 'plain';
 };
 
 export function FormSection({
   title,
   icon,
   children,
+  variant = 'card',
   style,
   ...rest
 }: FormSectionProps) {
   const theme = useTheme();
   const colorScheme = useColorScheme() ?? 'light';
+  const isPlain = variant === 'plain';
 
   return (
     <View
       style={[
-        styles.card,
-        {
+        isPlain ? styles.plain : styles.card,
+        !isPlain && {
           backgroundColor: theme.card,
           boxShadow: cardShadow(colorScheme),
         },
         style,
       ]}
       {...rest}>
-      <View style={styles.header}>
+      <View style={[styles.header, isPlain && styles.plainHeader]}>
         {icon ? (
-          <View style={[styles.iconBox, { backgroundColor: theme.muted }]}>
-            <Feather name={icon} size={16} color={theme.text} />
-          </View>
+          <Feather name={icon} size={16} color={theme.subtext} />
         ) : null}
-        <ThemedText style={styles.title} selectable>
+        <ThemedText
+          style={[
+            styles.title,
+            isPlain && styles.plainTitle,
+            isPlain && { color: theme.subtext },
+          ]}
+          selectable>
           {title}
         </ThemedText>
       </View>
@@ -115,19 +123,23 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     gap: 4,
   },
+  plain: {
+    gap: 8,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginBottom: 16,
   },
-  iconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderCurve: 'continuous',
+  plainHeader: {
+    gap: 8,
+    marginBottom: 0,
+  },
+  plainTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   title: {
     fontSize: 17,

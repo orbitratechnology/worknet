@@ -1,5 +1,7 @@
 import { cardShadow, Layout, type ColorScheme } from '@/constants/theme';
+import { useAuthGate } from '@/context/auth-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSavedProviders } from '@/hooks/use-saved-providers';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
 import { BlurTargetView, BlurView } from 'expo-blur';
@@ -10,7 +12,6 @@ import React, { useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../themed-text';
 
-/** Portrait card — 10:16 (width:height). */
 export const SERVICE_CARD_IMAGE_ASPECT = 10 / 16;
 
 export interface ServiceCardProps {
@@ -23,7 +24,9 @@ export interface ServiceCardProps {
   availabilityStatus?: 'online' | 'offline';
   rating?: number;
   reviewCount?: number;
-  isVerified?: boolean;
+  matchReason?: string;
+  showSave?: boolean;
+  compact?: boolean;
 }
 
 function DistanceBadge({ label }: { label: string }) {
@@ -39,10 +42,15 @@ function DistanceBadge({ label }: { label: string }) {
 
 function formatPriceLabel(price: string) {
   if (price.startsWith('LKR ')) {
-    const amount = Number.parseInt(price.replace('LKR ', '').replace('/hr', ''), 10);
+    const amount = Number.parseInt(
+      price.replace('LKR ', '').replace('/hr', ''),
+      10,
+    );
     if (!Number.isNaN(amount) && amount >= 1000) {
       const compact =
-        amount % 1000 === 0 ? `${amount / 1000}k` : `${(amount / 1000).toFixed(1)}k`;
+        amount % 1000 === 0
+          ? `${amount / 1000}k`
+          : `${(amount / 1000).toFixed(1)}k`;
       return `${compact}/hr`;
     }
     if (!Number.isNaN(amount)) return `${amount}/hr`;
@@ -61,7 +69,9 @@ function GlassFooter({
   children: React.ReactNode;
 }) {
   const isAndroid = process.env.EXPO_OS === 'android';
-  const blurTint = isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight';
+  const blurTint = isDark
+    ? 'systemThinMaterialDark'
+    : 'systemThinMaterialLight';
 
   return (
     <View style={styles.footerGlass}>
@@ -85,16 +95,22 @@ export const ServiceCard = React.memo(function ServiceCard({
   price,
   imageUrl,
   availabilityStatus,
-  isVerified,
+  rating,
+  reviewCount,
+  matchReason,
+  showSave = false,
 }: ServiceCardProps) {
   const colorScheme = useColorScheme();
   const scheme: ColorScheme = colorScheme === 'dark' ? 'dark' : 'light';
   const theme = useTheme();
   const router = useRouter();
+  const { gateAction } = useAuthGate();
+  const { isSaved, toggleSave } = useSavedProviders();
   const blurTargetRef = useRef<View | null>(null);
   const isAndroid = process.env.EXPO_OS === 'android';
   const isOnline = availabilityStatus === 'online';
   const isDark = scheme === 'dark';
+  const saved = isSaved(id);
 
   const handlePress = React.useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -103,6 +119,17 @@ export const ServiceCard = React.memo(function ServiceCard({
       params: { id },
     });
   }, [id, router]);
+
+  const handleSave = React.useCallback(
+    (e?: { stopPropagation?: () => void }) => {
+      e?.stopPropagation?.();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      gateAction('Sign in to save workers', () => {
+        toggleSave(id);
+      });
+    },
+    [gateAction, toggleSave, id],
+  );
 
   const imageUri = React.useMemo(
     () =>
@@ -114,7 +141,6 @@ export const ServiceCard = React.memo(function ServiceCard({
   );
 
   const priceLabel = React.useMemo(() => formatPriceLabel(price), [price]);
-
   const onImageMuted = 'rgba(255,255,255,0.82)';
 
   const imageLayer = (
@@ -138,10 +164,7 @@ export const ServiceCard = React.memo(function ServiceCard({
           transform: [{ scale: pressed ? 0.98 : 1 }],
         },
       ]}>
-      <View
-        style={[
-          styles.card
-        ]}>
+      <View style={styles.card}>
         <View style={styles.media}>
           {isAndroid ? (
             <BlurTargetView ref={blurTargetRef} style={StyleSheet.absoluteFill}>
@@ -153,45 +176,58 @@ export const ServiceCard = React.memo(function ServiceCard({
 
           <View style={styles.topBar}>
             <DistanceBadge label={distance} />
-            {availabilityStatus ? (
-              <View
-                style={[styles.statusDotRing, { borderColor: '#FFFFFF' }]}
-                accessibilityLabel={isOnline ? 'Available now' : 'Offline'}>
+            <View style={styles.topBarRight}>
+              {showSave ? (
+                <Pressable
+                  onPress={() => handleSave()}
+                  hitSlop={8}
+                  style={styles.saveBtn}
+                  accessibilityLabel={saved ? 'Unsave worker' : 'Save worker'}>
+                  <Feather
+                    name='heart'
+                    size={14}
+                    color={saved ? '#FF6B6B' : '#FFFFFF'}
+                    style={{ opacity: saved ? 1 : 0.9 }}
+                  />
+                </Pressable>
+              ) : null}
+              {availabilityStatus ? (
                 <View
-                  style={[
-                    styles.statusDot,
-                    {
-                      backgroundColor: isOnline ? theme.online : theme.offline,
-                    },
-                  ]}
-                />
-              </View>
-            ) : null}
+                  style={[styles.statusDotRing, { borderColor: '#FFFFFF' }]}
+                  accessibilityLabel={isOnline ? 'Available now' : 'Offline'}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      {
+                        backgroundColor: isOnline ? theme.online : theme.offline,
+                      },
+                    ]}
+                  />
+                </View>
+              ) : null}
+            </View>
           </View>
 
           <View style={styles.footer}>
             <GlassFooter isDark={isDark} blurTargetRef={blurTargetRef}>
               <View style={styles.footerMain}>
-                <View style={styles.nameRow}>
-                  <ThemedText style={styles.nameOnImage} numberOfLines={1}>
-                    {name}
-                  </ThemedText>
-                  {isVerified ? (
-                    <View
-                      style={[
-                        styles.verifiedBadge,
-                        { backgroundColor: theme.success },
-                      ]}
-                      accessibilityLabel='Verified provider'>
-                      <Feather name='check' size={8} color='#FFFFFF' />
-                    </View>
-                  ) : null}
-                </View>
+                <ThemedText style={styles.nameOnImage} numberOfLines={1}>
+                  {name}
+                </ThemedText>
                 <ThemedText
                   style={[styles.roleOnImage, { color: onImageMuted }]}
                   numberOfLines={1}>
-                  {role}
+                  {matchReason || role}
                 </ThemedText>
+                {(rating ?? 0) > 0 || (reviewCount ?? 0) > 0 ? (
+                  <View style={styles.ratingRow}>
+                    <Feather name='star' size={11} color='#FFD54F' />
+                    <ThemedText style={styles.ratingText}>
+                      {(rating ?? 0).toFixed(1)}
+                      {(reviewCount ?? 0) > 0 ? ` (${reviewCount})` : ''}
+                    </ThemedText>
+                  </View>
+                ) : null}
                 <View style={styles.priceRow}>
                   <Feather name='tag' size={13} color='#FFFFFF' />
                   <ThemedText
@@ -239,6 +275,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  saveBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   distanceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,7 +298,7 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     backgroundColor: 'rgba(0,0,0,0.4)',
     flexShrink: 1,
-    maxWidth: '78%',
+    maxWidth: '70%',
   },
   distanceBadgeText: {
     color: '#FFFFFF',
@@ -261,10 +310,6 @@ const styles = StyleSheet.create({
   statusDotRing: {
     width: 12,
     height: 12,
-    position: 'absolute',
-    right: 10,
-    top: 10,
-    zIndex: 2,
     borderRadius: 6,
     borderWidth: 2,
     alignItems: 'center',
@@ -275,12 +320,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    minWidth: 0,
   },
   nameOnImage: {
     flexShrink: 1,
@@ -293,18 +332,22 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  verifiedBadge: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   roleOnImage: {
     fontSize: 11,
     fontWeight: '500',
     lineHeight: 14,
     marginTop: 1,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  ratingText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
   },
   footer: {
     position: 'absolute',
@@ -321,7 +364,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   footerMain: {
-    gap: 4,
+    gap: 2,
     minWidth: 0,
   },
   priceRow: {

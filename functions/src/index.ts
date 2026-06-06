@@ -1,5 +1,11 @@
-import { setGlobalOptions } from 'firebase-functions';
+import { setGlobalOptions } from 'firebase-functions/v2/options';
 
-export { preventDuplicateReview } from './preventDuplicateReview.js';
+setGlobalOptions({
+  maxInstances: 10,
+  region: 'asia-south1',
+});
 
-setGlobalOptions({ maxInstances: 10 });
+export {
+  preventDuplicateReview,
+  aggregateReviewRating,
+} from './preventDuplicateReview.js';
