@@ -136,7 +136,7 @@ function WorkerDashboard({
   const completeness = profileCompleteness({
     name: data.name,
     imageUri: data.imageUrl ?? null,
-    nicNumber: data.nicNumber ?? '',
+    nicNumber: data.phoneVerified ? 'verified' : '',
     phoneVerified: !!data.phoneVerified,
     phoneNumber: data.phoneNumber,
     primaryProfessionId: data.primaryProfessionId,

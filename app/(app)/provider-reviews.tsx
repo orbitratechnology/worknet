@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { ReviewFilterBar } from '@/components/reviews/review-filter-bar';
+import { ReportContentSheet, ReportContentSheetRef } from '@/components/report/report-content-sheet';
 import { ReviewList } from '@/components/reviews/review-list';
 import { ReviewRatingSummary } from '@/components/reviews/review-rating-summary';
 import {
@@ -42,6 +43,7 @@ export default function ProviderReviewsScreen() {
   const theme = useTheme();
   const { bottom } = useScreenInsets();
   const reviewSheetRef = useRef<WriteReviewSheetRef>(null);
+  const reportSheetRef = useRef<ReportContentSheetRef>(null);
 
   const [sort, setSort] = useState<ReviewSort>('newest');
   const [ratingFilter, setRatingFilter] = useState<ReviewRatingFilter>('all');
@@ -119,17 +121,32 @@ export default function ProviderReviewsScreen() {
             ) : null}
           </View>
 
-          <ReviewList reviews={filteredReviews} />
+          <ReviewList
+            reviews={filteredReviews}
+            onReportReview={(review) =>
+              gateAction('Sign in to report content', () =>
+                reportSheetRef.current?.open({
+                  targetType: 'review',
+                  targetId: review.id,
+                  providerId: id,
+                  title: 'Report review',
+                }),
+              )
+            }
+          />
         </ScrollView>
       )}
 
       {id ? (
-        <WriteReviewSheet
-          ref={reviewSheetRef}
-          providerId={id}
-          providerName={providerName}
-          onSubmitted={refresh}
-        />
+        <>
+          <WriteReviewSheet
+            ref={reviewSheetRef}
+            providerId={id}
+            providerName={providerName}
+            onSubmitted={refresh}
+          />
+          <ReportContentSheet ref={reportSheetRef} />
+        </>
       ) : null}
     </ScreenShell>
   );

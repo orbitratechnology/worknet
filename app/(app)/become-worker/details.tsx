@@ -12,6 +12,7 @@ import { useAuth } from '@/context/auth';
 import { useWorkerOnboarding } from '@/hooks/use-worker-onboarding';
 import { useTheme } from '@/hooks/use-theme';
 import { uploadLocalFile, workSamplePath } from '@/lib/storage';
+import { getUserFacingMessage } from '@/lib/user-errors';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -80,8 +81,8 @@ export default function DetailsStep() {
           workSamplePath(user.uid, samples.length),
         );
         setSamples((s) => [...s, url]);
-      } catch {
-        Alert.alert('Upload failed', 'Could not upload that photo. Try again.');
+      } catch (e) {
+        Alert.alert('Upload failed', getUserFacingMessage(e, 'upload'));
       } finally {
         setUploadingSample(false);
       }

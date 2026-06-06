@@ -1,3 +1,5 @@
+import { SocialAuthSection } from '@/components/auth/social-auth-section';
+import { LegalAgreement } from '@/components/legal/legal-agreement';
 import { ThemedText } from '@/components/themed-text';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { Layout } from '@/constants/theme';
@@ -5,7 +7,7 @@ import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useTheme } from '@/hooks/use-theme';
 import { getAuthErrorMessage } from '@/lib/auth-errors';
-import { Feather, FontAwesome } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -26,7 +28,7 @@ export default function LoginScreen() {
     message?: string;
     returnTo?: string;
   }>();
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, signInWithApple } = useAuth();
   const theme = useTheme();
   const { contentBottom } = useScreenInsets();
 
@@ -62,6 +64,21 @@ export default function LoginScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await signInWithGoogle();
+    } catch (err: any) {
+      if (err.message !== 'Sign-in cancelled') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setError(getAuthErrorMessage(err));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await signInWithApple();
     } catch (err: any) {
       if (err.message !== 'Sign-in cancelled') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -227,38 +244,13 @@ export default function LoginScreen() {
           </View>
 
           {/* Social Buttons */}
-          <View style={styles.socialContainer}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.socialBtn,
-                { backgroundColor: theme.card, borderColor: theme.border },
-                pressed && { transform: [{ scale: 0.98 }] },
-              ]}
-              onPress={handleGoogleLogin}
-              disabled={loading}>
-              <FontAwesome name='google' size={20} color={theme.text} />
-              <ThemedText style={styles.socialBtnText} type='defaultSemiBold'>
-                {loading ? 'Connecting...' : 'Continue with Google'}
-              </ThemedText>
-            </Pressable>
-
-            {/* <Pressable
-                style={({ pressed }) => [
-                  styles.socialBtn,
-                  { backgroundColor: theme.accent, borderColor: theme.accent },
-                  pressed && { transform: [{ scale: 0.98 }] },
-                ]}
-                onPress={() =>
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                }>
-                <FontAwesome name='apple' size={20} color={theme.onAccent} />
-                <ThemedText
-                  style={[styles.socialBtnText, { color: theme.onAccent }]}
-                  type='defaultSemiBold'>
-                  Continue with Apple
-                </ThemedText>
-              </Pressable> */}
-          </View>
+          <SocialAuthSection
+            loading={loading}
+            onGooglePress={handleGoogleLogin}
+            onApplePress={handleAppleLogin}
+            variant='stack'
+          />
+          <LegalAgreement />
 
           {/* Footer */}
           <View style={styles.footer}>

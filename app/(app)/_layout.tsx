@@ -1,12 +1,44 @@
 import { useAuth } from '@/context/auth';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
+
+const PROTECTED_APP_ROUTES = new Set([
+  'settings',
+  'edit-profile',
+  'saved-workers',
+  'provider-profile',
+  'enroll-provider',
+  'become-worker',
+]);
+
+function AuthStackRedirect() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (loading || user) return;
+    const appRoute = segments[1];
+    if (
+      segments[0] === '(app)' &&
+      typeof appRoute === 'string' &&
+      PROTECTED_APP_ROUTES.has(appRoute)
+    ) {
+      router.replace('/(tabs)/profile');
+    }
+  }, [user, loading, segments, router]);
+
+  return null;
+}
 
 export default function AppLayout() {
   const { user } = useAuth();
 
   return (
-    <Stack>
+    <>
+      <AuthStackRedirect />
+      <Stack>
       <Stack.Screen
         name='public-profile'
         options={{ title: 'Public Profile', headerShown: false }}
@@ -46,5 +78,6 @@ export default function AppLayout() {
         />
       </Stack.Protected>
     </Stack>
+    </>
   );
 }

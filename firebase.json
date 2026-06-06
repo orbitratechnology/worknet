@@ -8,6 +8,10 @@
   "storage": {
     "rules": "storage.rules"
   },
+  "hosting": {
+    "public": "hosting/public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+  },
   "functions": [
     {
       "codebase": "default",

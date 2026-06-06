@@ -10,6 +10,7 @@ import { useAuth } from '@/context/auth';
 import { useWorkerOnboarding } from '@/hooks/use-worker-onboarding';
 import { useTheme } from '@/hooks/use-theme';
 import { profilePhotoPath, uploadLocalFile } from '@/lib/storage';
+import { getUserFacingMessage } from '@/lib/user-errors';
 import { isValidName } from '@/lib/validation';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -50,8 +51,8 @@ export default function IdentityStep() {
           profilePhotoPath(user.uid),
         );
         setImageUri(url);
-      } catch {
-        Alert.alert('Upload failed', 'Could not upload your photo. Try again.');
+      } catch (e) {
+        Alert.alert('Upload failed', getUserFacingMessage(e, 'upload'));
       } finally {
         setUploading(false);
       }

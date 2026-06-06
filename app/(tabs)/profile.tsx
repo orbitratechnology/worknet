@@ -18,6 +18,7 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
+import { LEGAL_URLS } from '@/lib/legal-urls';
 import * as WebBrowser from 'expo-web-browser';
 
 const SettingRow = React.memo(function SettingRow({
@@ -211,7 +212,14 @@ export default function ProfileScreen() {
               icon='file-text'
               title='Privacy Policy'
               theme={theme}
-              onPress={() => WebBrowser.openBrowserAsync('https://orbitratech.net')}
+              onPress={() => WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
+            />
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <SettingRow
+              icon='book'
+              title='Terms of Service'
+              theme={theme}
+              onPress={() => WebBrowser.openBrowserAsync(LEGAL_URLS.terms)}
             />
           </View>
         </ScrollView>
@@ -304,7 +312,14 @@ export default function ProfileScreen() {
             icon='file-text'
             title='Privacy Policy'
             theme={theme}
-            onPress={() => WebBrowser.openBrowserAsync('https://orbitratech.net')}
+            onPress={() => WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
+          />
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          <SettingRow
+            icon='book'
+            title='Terms of Service'
+            theme={theme}
+            onPress={() => WebBrowser.openBrowserAsync(LEGAL_URLS.terms)}
           />
         </View>
 

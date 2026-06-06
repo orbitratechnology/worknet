@@ -13,6 +13,7 @@ import {
 import { useTheme } from '@/hooks/use-theme';
 import { formatLanguagesLabel } from '@/constants/worker-languages';
 import { publishWorkerProfile } from '@/lib/publish-worker';
+import { getUserFacingMessage } from '@/lib/user-errors';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -35,9 +36,7 @@ export default function ReviewStep() {
       await refreshUser();
       router.replace('/(tabs)/offer-service');
     } catch (e: unknown) {
-      const message =
-        e instanceof Error ? e.message : 'Try again.';
-      Alert.alert('Could not publish', message);
+      Alert.alert('Could not publish', getUserFacingMessage(e, 'generic'));
     } finally {
       setLoading(false);
     }
