@@ -3,6 +3,10 @@ import { db } from '@/lib/firebase';
 import { logger } from '@/lib/logger';
 import { UserProfile } from '@/types/user';
 import {
+  AppleSignInCancelledError,
+  signInWithAppleCredential,
+} from '@/lib/apple-auth';
+import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -39,6 +43,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<any>;
   signUp: (email: string, password: string, fullName: string) => Promise<any>;
   signInWithGoogle: () => Promise<any>;
+  signInWithApple: () => Promise<any>;
   signOut: () => Promise<void>;
   sendPasswordResetEmail: (email: string) => Promise<void>;
   sendVerificationEmail: (email: string) => Promise<void>;
@@ -211,6 +216,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw new Error('Google Sign-In failed');
         } catch (error) {
           logger.error('Google Sign-In Error:', error);
+          throw error;
+        }
+      },
+      signInWithApple: async () => {
+        try {
+          const { userCredential, displayName } =
+            await signInWithAppleCredential();
+
+          try {
+            await setDoc(
+              doc(db, 'users', userCredential.user.uid),
+              {
+                id: userCredential.user.uid,
+                name:
+                  displayName ||
+                  userCredential.user.displayName ||
+                  'User',
+                email: userCredential.user.email,
+                photoUrl: userCredential.user.photoURL,
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true },
+            );
+          } catch (err) {
+            logger.error('Failed to sync apple profile to firestore', err);
+          }
+
+          if (displayName && !userCredential.user.displayName) {
+            try {
+              await updateProfile(userCredential.user, {
+                displayName,
+              });
+            } catch (err) {
+              logger.error('Failed to update apple display name', err);
+            }
+          }
+
+          await recordSession(userCredential.user);
+          return userCredential;
+        } catch (error) {
+          if (error instanceof AppleSignInCancelledError) {
+            throw error;
+          }
+          logger.error('Apple Sign-In Error:', error);
           throw error;
         }
       },

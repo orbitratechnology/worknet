@@ -1,3 +1,5 @@
+import { SocialAuthSection } from '@/components/auth/social-auth-section';
+import { LegalAgreement } from '@/components/legal/legal-agreement';
 import { ThemedText } from '@/components/themed-text';
 import { StackHeader } from '@/components/ui/stack-header';
 import { ScreenShell } from '@/components/ui/screen-shell';
@@ -5,7 +7,8 @@ import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useTheme } from '@/hooks/use-theme';
-import { Feather, FontAwesome } from '@expo/vector-icons';
+import { getAuthErrorMessage } from '@/lib/auth-errors';
+import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -22,7 +25,7 @@ import {
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle, signInWithApple } = useAuth();
   const theme = useTheme();
   const { contentBottom } = useScreenInsets();
   const [fullName, setFullName] = useState('');
@@ -60,7 +63,7 @@ export default function RegisterScreen() {
       await signUp(email, password, fullName);
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(err.message || 'Failed to create account.');
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -75,7 +78,22 @@ export default function RegisterScreen() {
     } catch (err: any) {
       if (err.message !== 'Sign-in cancelled') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setError(err.message || 'Failed to sign in with Google.');
+        setError(getAuthErrorMessage(err));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleRegister = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await signInWithApple();
+    } catch (err: any) {
+      if (err.message !== 'Sign-in cancelled') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setError(getAuthErrorMessage(err));
       }
     } finally {
       setLoading(false);
@@ -284,42 +302,13 @@ export default function RegisterScreen() {
               />
             </View>
 
-            {/* Social Icons Grid */}
-            <View style={styles.socialRow}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.socialSquare,
-                  { backgroundColor: theme.card, borderColor: theme.border },
-                  loading && { opacity: 0.8 },
-                  pressed && { transform: [{ scale: 0.98 }] },
-                ]}
-                onPress={handleGoogleRegister}
-                disabled={loading}>
-                <FontAwesome name='google' size={24} color='#EA4335' />
-                <ThemedText
-                  style={styles.socialSquareText}
-                  type='defaultSemiBold'>
-                  {loading ? '...' : 'Google'}
-                </ThemedText>
-              </Pressable>
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.socialSquare,
-                  { backgroundColor: theme.accent, borderColor: theme.accent },
-                  pressed && { transform: [{ scale: 0.98 }] },
-                ]}
-                onPress={() =>
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                }>
-                <FontAwesome name='apple' size={24} color={theme.onAccent} />
-                <ThemedText
-                  style={[styles.socialSquareText, { color: theme.onAccent }]}
-                  type='defaultSemiBold'>
-                  Apple
-                </ThemedText>
-              </Pressable>
-            </View>
+            <SocialAuthSection
+              loading={loading}
+              onGooglePress={handleGoogleRegister}
+              onApplePress={handleAppleRegister}
+              variant='grid'
+            />
+            <LegalAgreement />
 
             {/* Footer */}
             <View style={styles.footer}>

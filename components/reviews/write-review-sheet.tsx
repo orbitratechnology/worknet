@@ -5,6 +5,7 @@ import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useTheme } from '@/hooks/use-theme';
 import { db } from '@/lib/firebase';
+import { getUserFacingMessage } from '@/lib/user-errors';
 import { Feather } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
@@ -70,9 +71,7 @@ export const WriteReviewSheet = forwardRef<
       sheetRef.current?.dismiss();
       onSubmitted?.();
     } catch (e: unknown) {
-      const message =
-        e instanceof Error ? e.message : 'Could not submit review. Try again.';
-      setError(message);
+      setError(getUserFacingMessage(e, 'review'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setSubmitting(false);

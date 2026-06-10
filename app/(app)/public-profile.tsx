@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { ProfileAvatar } from '@/components/profile/profile-avatar';
 import { WorkSamplesCarousel } from '@/components/profile/work-samples-carousel';
+import { ReportContentSheet, ReportContentSheetRef } from '@/components/report/report-content-sheet';
 import { ReviewList } from '@/components/reviews/review-list';
 import {
   WriteReviewSheet,
@@ -20,7 +21,7 @@ import { useSavedProviders } from '@/hooks/use-saved-providers';
 import { useProviderReviews } from '@/hooks/use-provider-reviews';
 import { ServiceProvider } from '@/types/database';
 import { Feather } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc } from '@react-native-firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -68,6 +69,7 @@ export default function PublicProfileScreen() {
   const { gateAction } = useAuthGate();
   const { isSaved, toggleSave } = useSavedProviders();
   const reviewSheetRef = useRef<WriteReviewSheetRef>(null);
+  const reportSheetRef = useRef<ReportContentSheetRef>(null);
   const theme = useTheme();
   const colorScheme = useColorScheme() ?? 'light';
   const { bottom } = useScreenInsets();
@@ -140,7 +142,6 @@ export default function PublicProfileScreen() {
   const fetchProvider = useCallback(async () => {
     if (!providerId) {
       setLoading(false);
-      setError('Missing provider ID.');
       return;
     }
     setError(null);
@@ -165,8 +166,14 @@ export default function PublicProfileScreen() {
   }, [fetchProvider, refreshReviews]);
 
   useEffect(() => {
-    fetchProvider();
-  }, [fetchProvider]);
+    if (providerId) {
+      fetchProvider();
+    }
+  }, [fetchProvider, providerId]);
+
+  if (!providerId) {
+    return <Redirect href='/(tabs)/profile' />;
+  }
 
   if (loading) {
     return (
@@ -217,21 +224,39 @@ export default function PublicProfileScreen() {
       <StackHeader
         title={provider.title || provider.name || 'Worker'}
         right={
-          <Pressable
-            hitSlop={8}
-            accessibilityRole='button'
-            accessibilityLabel={
-              isSaved(provider.id) ? 'Remove from saved' : 'Save worker'
-            }
-            onPress={() =>
-              gateAction('Sign in to save workers', () => toggleSave(provider.id))
-            }>
-            <Feather
-              name='heart'
-              size={20}
-              color={isSaved(provider.id) ? '#FF6B6B' : theme.text}
-            />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              hitSlop={8}
+              accessibilityRole='button'
+              accessibilityLabel='Report profile'
+              onPress={() =>
+                gateAction('Sign in to report content', () =>
+                  reportSheetRef.current?.open({
+                    targetType: 'provider',
+                    targetId: provider.id,
+                    providerId: provider.id,
+                    title: 'Report profile',
+                  }),
+                )
+              }>
+              <Feather name='flag' size={20} color={theme.text} />
+            </Pressable>
+            <Pressable
+              hitSlop={8}
+              accessibilityRole='button'
+              accessibilityLabel={
+                isSaved(provider.id) ? 'Remove from saved' : 'Save worker'
+              }
+              onPress={() =>
+                gateAction('Sign in to save workers', () => toggleSave(provider.id))
+              }>
+              <Feather
+                name='heart'
+                size={20}
+                color={isSaved(provider.id) ? '#FF6B6B' : theme.text}
+              />
+            </Pressable>
+          </View>
         }
       />
 
@@ -435,7 +460,19 @@ export default function PublicProfileScreen() {
                 ) : null}
               </View>
             </View>
-            <ReviewList reviews={previewReviews} />
+            <ReviewList
+              reviews={previewReviews}
+              onReportReview={(review) =>
+                gateAction('Sign in to report content', () =>
+                  reportSheetRef.current?.open({
+                    targetType: 'review',
+                    targetId: review.id,
+                    providerId: provider.id,
+                    title: 'Report review',
+                  }),
+                )
+              }
+            />
           </View>
 
           <View style={{ height: 120 }} />
@@ -448,6 +485,8 @@ export default function PublicProfileScreen() {
         providerName={provider.name}
         onSubmitted={refreshProfile}
       />
+
+      <ReportContentSheet ref={reportSheetRef} />
 
       <View
         style={[
@@ -515,6 +554,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.screenPadding,
     paddingTop: 8,
     gap: Layout.sectionGap,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
   titleBlock: {
     alignItems: 'center',

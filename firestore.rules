@@ -19,11 +19,13 @@ service cloud.firestore {
         && request.resource.data.userName is string;
     }
 
-    function nicUnchanged() {
-      return !('nicNumber' in resource.data)
-        || resource.data.nicNumber == request.resource.data.nicNumber
-        || resource.data.nicNumber == null
-        || resource.data.nicNumber == '';
+    function validReport() {
+      return request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.targetType in ['review', 'provider']
+        && request.resource.data.targetId is string
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() >= 3
+        && request.resource.data.reason.size() <= 500;
     }
 
     match /users/{userId} {
@@ -34,10 +36,21 @@ service cloud.firestore {
       }
     }
 
+    match /provider_verification/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
     match /service_providers/{providerId} {
       allow read: if true;
-      allow create: if isOwner(providerId);
-      allow update: if isOwner(providerId) && nicUnchanged();
+      allow create: if isOwner(providerId)
+        && !('nicNumber' in request.resource.data);
+      allow update: if isOwner(providerId)
+        && !('nicNumber' in request.resource.data)
+        && (
+          !('nicNumber' in resource.data)
+          || resource.data.nicNumber == null
+          || resource.data.nicNumber == ''
+        );
       allow delete: if isOwner(providerId);
     }
 
@@ -45,6 +58,11 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated() && validReview();
       allow update, delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow create: if isAuthenticated() && validReport();
+      allow read, update, delete: if false;
     }
 
     match /categories/{categoryId} {

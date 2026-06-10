@@ -12,6 +12,7 @@ export default ({ config }) => ({
   ios: {
     ...config.ios,
     bundleIdentifier: 'com.orbitra.worknet',
+    usesAppleSignIn: true,
     googleServicesFile: './GoogleService-Info.plist',
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -35,6 +36,7 @@ export default ({ config }) => ({
   plugins: [
     '@react-native-firebase/app',
     '@react-native-firebase/auth',
+    'expo-apple-authentication',
     'react-native-google-auth',
     'expo-font',
     'expo-image',
@@ -45,11 +47,8 @@ export default ({ config }) => ({
     [
       'expo-location',
       {
-        locationAlwaysPermission:
-          'Allow Worknet to use your location even when the app is in background to find the best local services for you.',
         locationWhenInUsePermission:
           'Allow Worknet to use your location to find the best local services nearby.',
-        isAndroidBackgroundLocationEnabled: true,
       },
     ],
     [
@@ -57,8 +56,6 @@ export default ({ config }) => ({
       {
         photosPermission:
           'Allow Worknet to access your photos to upload a profile picture.',
-        cameraPermission:
-          'Allow Worknet to access your camera to take a profile picture.',
       },
     ],
     [

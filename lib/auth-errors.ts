@@ -52,6 +52,12 @@ export function getAuthErrorMessage(error: any): string {
     case 'auth/unauthorized-domain':
       return 'This domain is not authorized for OAuth operations. Please contact support.';
 
+    // Apple Sign-In Errors
+    case 'ERR_REQUEST_CANCELED':
+      return 'Sign-in cancelled';
+    case 'auth/missing-or-invalid-nonce':
+      return 'Apple Sign-In could not be verified. Please try again.';
+
     default:
       // Fallback to the original message if it's somewhat readable, otherwise generic
       if (typeof error.message === 'string' && error.message.length > 0) {

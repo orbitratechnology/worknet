@@ -5,72 +5,83 @@ import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useTheme } from '@/hooks/use-theme';
-import { auth } from '@/lib/auth';
-import { db } from '@/lib/firebase';
+import { deleteUserAccount } from '@/lib/account-deletion';
+import { getUserFacingMessage } from '@/lib/user-errors';
 import { Feather } from '@expo/vector-icons';
-import { deleteUser } from '@react-native-firebase/auth';
-import { deleteDoc, doc } from '@react-native-firebase/firestore';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const theme = useTheme();
   const { contentBottom } = useScreenInsets();
   const [loading, setLoading] = useState(false);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [password, setPassword] = useState('');
 
-  const handleDeleteAccount = async () => {
+  const runDelete = async (reauthPassword?: string) => {
+    try {
+      setLoading(true);
+      await deleteUserAccount(reauthPassword);
+      router.replace('/(tabs)/profile');
+    } catch (error: unknown) {
+      const code =
+        error && typeof error === 'object' && 'code' in error
+          ? String((error as { code: string }).code)
+          : '';
+
+      if (code === 'auth/requires-recent-login') {
+        const usesPassword = user?.providerData.some(
+          (p) => p.providerId === 'password',
+        );
+        if (usesPassword) {
+          setPasswordModalVisible(true);
+          return;
+        }
+      }
+
+      Alert.alert(
+        'Could not delete account',
+        getUserFacingMessage(error, 'delete'),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
     if (!user) return;
 
     Alert.alert(
       'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone and you will lose all your data.',
+      'Are you sure you want to delete your account? This action cannot be undone and you will lose your profile data.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const currentUser = auth.currentUser;
-              if (currentUser) {
-                try {
-                  await deleteDoc(doc(db, 'users', currentUser.uid));
-                } catch (deleteUserDocError) {
-                  console.error('Error deleting user doc:', deleteUserDocError);
-                }
-
-                try {
-                  await deleteDoc(
-                    doc(db, 'service_providers', currentUser.uid),
-                  );
-                } catch {
-                  // Provider doc may not exist
-                }
-
-                await deleteUser(currentUser);
-              }
-            } catch (error: any) {
-              console.error('Error deleting account:', error);
-              if (error.code === 'auth/requires-recent-login') {
-                Alert.alert(
-                  'Security Check',
-                  'For security, you must re-authenticate before deleting your account. Please log out and log back in.',
-                );
-              } else {
-                Alert.alert(
-                  'Error',
-                  'Failed to delete account. Please try again later.',
-                );
-              }
-            } finally {
-              setLoading(false);
-            }
+          onPress: () => {
+            void runDelete();
           },
         },
       ],
     );
+  };
+
+  const confirmPasswordDelete = async () => {
+    setPasswordModalVisible(false);
+    await runDelete(password);
+    setPassword('');
   };
 
   return (
@@ -109,9 +120,64 @@ export default function SettingsScreen() {
         </View>
 
         <ThemedText style={[styles.hint, { color: theme.subtext }]} selectable>
-          This is a permanent action and cannot be undone.
+          This permanently removes your account, worker profile, photos, and
+          private verification data. Reviews you wrote may appear as from
+          &quot;Deleted User&quot;.
         </ThemedText>
       </ScrollView>
+
+      <Modal
+        visible={passwordModalVisible}
+        transparent
+        animationType='fade'
+        onRequestClose={() => setPasswordModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: theme.card, borderColor: theme.border },
+            ]}>
+            <ThemedText type='defaultSemiBold' style={styles.modalTitle}>
+              Confirm your password
+            </ThemedText>
+            <ThemedText style={{ color: theme.subtext, marginBottom: 12 }}>
+              For your security, enter your password to delete your account.
+            </ThemedText>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder='Password'
+              placeholderTextColor={theme.subtext}
+              style={[
+                styles.passwordInput,
+                {
+                  borderColor: theme.border,
+                  color: theme.text,
+                  backgroundColor: theme.background,
+                },
+              ]}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => {
+                  setPasswordModalVisible(false);
+                  setPassword('');
+                }}
+                style={styles.modalBtn}>
+                <ThemedText style={{ color: theme.subtext }}>Cancel</ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={() => void confirmPasswordDelete()}
+                style={styles.modalBtn}>
+                <ThemedText style={{ color: theme.error, fontWeight: '600' }}>
+                  Delete
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenShell>
   );
 }
@@ -149,6 +215,40 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 12,
     textAlign: 'center',
+    paddingHorizontal: 8,
+    lineHeight: 18,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    borderRadius: Layout.cardRadius,
+    borderWidth: 1,
+    borderCurve: 'continuous',
+    padding: 20,
+    gap: 8,
+  },
+  modalTitle: { fontSize: 18 },
+  passwordInput: {
+    borderWidth: 1,
+    borderRadius: Layout.chipRadius,
+    borderCurve: 'continuous',
+    paddingHorizontal: 14,
+    height: Layout.inputHeight,
+    marginBottom: 8,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 16,
+    marginTop: 4,
+  },
+  modalBtn: {
+    minHeight: Layout.minTouch,
+    justifyContent: 'center',
     paddingHorizontal: 8,
   },
 });

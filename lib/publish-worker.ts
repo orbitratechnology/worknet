@@ -9,7 +9,7 @@ import {
 import { WorkerOnboardingDraft } from '@/hooks/use-worker-onboarding';
 import { ServiceProvider } from '@/types/database';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { doc, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
+import { doc, deleteField, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
 
 export async function publishWorkerProfile(
   user: FirebaseAuthTypes.User,
@@ -36,7 +36,6 @@ export async function publishWorkerProfile(
     name: draft.name.trim(),
     bio: draft.bio.trim() || draft.primaryProfession,
     about: draft.bio.trim(),
-    nicNumber: draft.nicNumber.trim(),
     nicVerified: false,
     phoneVerified: draft.phoneVerified,
     primaryProfessionId: draft.primaryProfessionId,
@@ -75,9 +74,28 @@ export async function publishWorkerProfile(
     provider.createdAt = serverTimestamp();
   }
 
-  await setDoc(doc(db, 'service_providers', user.uid), provider, {
-    merge: true,
-  });
+  await setDoc(
+    doc(db, 'service_providers', user.uid),
+    {
+      ...provider,
+      nicNumber: deleteField(),
+    },
+    { merge: true },
+  );
+
+  if (draft.nicNumber.trim()) {
+    await setDoc(
+      doc(db, 'provider_verification', user.uid),
+      {
+        nicNumber: draft.nicNumber.trim(),
+        phoneVerified: draft.phoneVerified,
+        phoneNumber: draft.phoneNumber,
+        verifiedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  }
 
   await setDoc(
     doc(db, 'users', user.uid),
