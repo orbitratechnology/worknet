@@ -7,12 +7,12 @@ export default ({ config }) => ({
   icon: './assets/images/icon.png',
   scheme: 'worknet',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
+  buildCacheProvider: 'eas',
   jsEngine: 'hermes',
   ios: {
     ...config.ios,
     bundleIdentifier: 'com.orbitra.worknet',
-    jsEngine: 'jsc',
+    googleServicesFile: './GoogleService-Info.plist',
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
     },
@@ -20,11 +20,11 @@ export default ({ config }) => ({
   android: {
     ...config.android,
     package: 'com.orbitra.worknet',
+    googleServicesFile: './google-services.json',
     adaptiveIcon: {
       backgroundColor: '#ffffff',
       foregroundImage: './assets/images/icon.png',
     },
-    edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     config: {
       googleMaps: {
@@ -33,9 +33,15 @@ export default ({ config }) => ({
     },
   },
   plugins: [
+    '@react-native-firebase/app',
+    '@react-native-firebase/auth',
     'react-native-google-auth',
+    'expo-font',
+    'expo-image',
+    'expo-web-browser',
     'expo-secure-store',
     'expo-router',
+    '@rnrepo/expo-config-plugin',
     [
       'expo-location',
       {
@@ -56,6 +62,16 @@ export default ({ config }) => ({
       },
     ],
     [
+      'expo-media-library',
+      {
+        photosPermission:
+          'Allow Worknet to save work sample images to your photo library.',
+        savePhotosPermission:
+          'Allow Worknet to save work sample images to your photo library.',
+        isAccessMediaLocationEnabled: false,
+      },
+    ],
+    [
       'expo-splash-screen',
       {
         image: './assets/images/adaptive-icon.png',
@@ -66,7 +82,7 @@ export default ({ config }) => ({
   ],
   experiments: {
     typedRoutes: true,
-    reactCompiler: true,
+    // reactCompiler: true,
   },
   extra: {
     ...config.extra,

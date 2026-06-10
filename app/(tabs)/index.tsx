@@ -1,212 +1,149 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { HapticPressable } from '@/components/ui/haptic-pressable';
+import { HomeBanner } from '@/components/ui/home-banner';
 import { Problems } from '@/components/ui/problems';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { SearchField } from '@/components/ui/search-field';
+import { SectionHeader } from '@/components/ui/section-header';
 import { ServiceCard } from '@/components/ui/service-card';
 import { TopBar } from '@/components/ui/top-bar';
+import { Layout } from '@/constants/theme';
 import { useLocation } from '@/context/location';
-import { useServiceProviders } from '@/hooks/use-service-providers';
-import { useTheme } from '@/hooks/use-theme';
-import { calculateDistance } from '@/lib/geo';
-import { ServiceProvider } from '@/types/database';
-import { Feather } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import {
+  sortModeFromChip,
+  useMatchedProviders,
+} from '@/hooks/use-matched-providers';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 
-// ... (existing code, I'll just replace the relevant parts)
-import { SafeAreaView } from 'react-native-safe-area-context';
+function formatProviderPrice(baseRate?: number) {
+  return baseRate ? `LKR ${baseRate}/hr` : 'Contact for price';
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const theme = useTheme();
-  const { coords, country } = useLocation();
-  const { providers: nearbyServices } = useServiceProviders({
+  const { coords } = useLocation();
+  const { contentBottom } = useScreenInsets({ tabBar: true });
+  const { providers: nearbyServices, loading } = useMatchedProviders({
+    coords,
     onlyAvailable: true,
-    limitCount: 10,
+    sortMode: sortModeFromChip('Best Match'),
+    fetchLimit: 10,
+    maxDistanceKm: 25,
   });
 
   const handleSearchPress = React.useCallback(() => {
-    router.push('/explore');
+    router.push('/(app)/explore');
   }, [router]);
 
-  const renderHeader = React.useMemo(
-    () => (
-      <View style={styles.headerContent} collapsable={false}>
-        <TopBar />
-
-        {/* Search Call to Action */}
-        <View style={styles.searchContainer}>
-          <HapticPressable
-            onPress={handleSearchPress}
-            style={({ pressed }) => [
-              styles.searchBar,
-              {
-                backgroundColor: theme.surface,
-                borderColor: theme.border,
-                opacity: 1,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              },
-            ]}>
-            <Feather name='search' size={20} color={theme.accent} />
-            <ThemedText style={[styles.searchText, { color: theme.subtext }]}>
-              Search for &quot;Welder&quot; or &quot;Broken Tap&quot;...
-            </ThemedText>
-            <View
-              style={[
-                styles.searchBadge,
-                { backgroundColor: theme.accent + '15' },
-              ]}>
-              <Feather name='sliders' size={14} color={theme.accent} />
-            </View>
-          </HapticPressable>
-        </View>
-
-        <View>
-          <Problems />
-        </View>
-
-        {/* <PromoBanner /> */}
-        <View style={styles.nearbyHeader}>
-          <ThemedText style={styles.nearbyTitle} type='subtitle' selectable>
-            Nearby
-          </ThemedText>
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/services');
-            }}>
-            <ThemedText style={[styles.seeAll, { color: theme.accent }]}>
-              See All
-            </ThemedText>
-          </TouchableOpacity>
-        </View>
+  const renderNearbyCard = React.useCallback(
+    (item: (typeof nearbyServices)[number]) => (
+      <View style={styles.gridItem}>
+        <ServiceCard
+          id={item.id}
+          name={item.name}
+          role={item.primaryProfession || 'Worker'}
+          distance={
+            item.distance !== undefined
+              ? item.distance < 1
+                ? 'Under 1 km'
+                : `${item.distance.toFixed(1)} km`
+              : 'Nearby'
+          }
+          price={formatProviderPrice(item.pricing?.baseRate)}
+          imageUrl={item.imageUrl || ''}
+          availabilityStatus={item.availabilityStatus}
+          rating={item.rating}
+          reviewCount={item.reviewCount}
+          matchReason={item.matchReason}
+          showSave
+        />
       </View>
     ),
-    [theme, router, handleSearchPress],
-  );
-
-  const renderItem = React.useCallback(
-    ({ item, index }: { item: ServiceProvider; index: number }) => {
-      let displayDistance = 'Nearby';
-      if (coords && item.location?.latitude && item.location?.longitude) {
-        const dist = calculateDistance(
-          coords.latitude,
-          coords.longitude,
-          item.location.latitude,
-          item.location.longitude,
-        );
-        displayDistance = dist < 1 ? 'Under 1km' : `${dist.toFixed(1)}km`;
-      }
-
-      return (
-        <View style={{ flex: 1, maxWidth: '48%' }}>
-          <ServiceCard
-            id={item.id}
-            name={item.name}
-            category={item.primaryProfession || 'General'}
-            rating={item.rating || 0}
-            distance={displayDistance}
-            imageUrl={item.imageUrl || ''}
-            isVerified={item.isVerified}
-            experience={item.experienceYears}
-            price={
-              item.pricing?.baseRate
-                ? `LKR ${item.pricing.baseRate}/hr`
-                : undefined
-            }
-          />
-        </View>
-      );
-    },
-    [coords],
-  );
-
-  const keyExtractor = React.useCallback(
-    (item: ServiceProvider) => item.id,
     [],
   );
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <FlatList
-          data={nearbyServices}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          numColumns={2}
-          ListHeaderComponent={renderHeader}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          columnWrapperStyle={styles.columnWrapper}
-          contentInsetAdjustmentBehavior='automatic'
-          initialNumToRender={6}
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          removeClippedSubviews={true}
-        />
-      </SafeAreaView>
-    </ThemedView>
+    <ScreenShell>
+      <FlatList
+        data={[]}
+        renderItem={() => null}
+        ListHeaderComponent={
+          <>
+            <TopBar />
+
+            <View style={styles.searchContainer}>
+              <SearchField
+                placeholder='Search for "Welder" or "Broken Tap"...'
+                onPress={handleSearchPress}
+                editable={false}
+                showFilter
+                onFilterPress={() => router.push('/(tabs)/services')}
+              />
+            </View>
+
+            <HomeBanner />
+            <Problems />
+
+            <SectionHeader
+              title='Nearby'
+              onActionPress={() => router.push('/(tabs)/services')}
+            />
+
+            {loading ? (
+              <ActivityIndicator style={{ marginVertical: 32 }} />
+            ) : nearbyServices.length === 0 ? (
+              <View style={styles.emptyNearby}>
+                <ThemedText style={styles.emptyText} selectable>
+                  No workers nearby yet. Try expanding your search.
+                </ThemedText>
+              </View>
+            ) : (
+              <View style={styles.nearbyGrid}>
+                {nearbyServices.slice(0, 6).map((item) => (
+                  <React.Fragment key={item.id}>
+                    {renderNearbyCard(item)}
+                  </React.Fragment>
+                ))}
+              </View>
+            )}
+          </>
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: contentBottom },
+        ]}
+      />
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  headerContent: {
-    flex: 1,
-    paddingTop: 10,
-  },
   searchContainer: {
+    paddingHorizontal: Layout.screenPadding,
+    marginBottom: Layout.sectionGap,
+  },
+  nearbyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 10,
-    marginVertical: 16,
+    gap: Layout.itemGap,
   },
-  searchBar: {
-    flexDirection: 'row',
+  gridItem: {
+    width: '48%',
+    maxWidth: '48%',
+  },
+  emptyNearby: {
+    paddingHorizontal: Layout.screenPadding,
+    paddingVertical: 32,
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 12,
   },
-  searchText: {
-    flex: 1,
+  emptyText: {
     fontSize: 15,
-    fontWeight: '500',
+    textAlign: 'center',
+    opacity: 0.7,
   },
-  searchBadge: {
-    padding: 8,
-    borderRadius: 10,
-  },
-  nearbyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  nearbyTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  seeAll: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    gap: 16,
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
+  scrollContent: {},
 });

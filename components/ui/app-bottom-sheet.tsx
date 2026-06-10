@@ -11,58 +11,74 @@ interface AppBottomSheetProps {
   children: React.ReactNode;
   snapPoints?: string[];
   index?: number;
+  enableDynamicSizing?: boolean;
 }
 
 export const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(
-  ({ children, snapPoints, index = 0 }, ref) => {
+  ({ children, snapPoints, index = 0, enableDynamicSizing }, ref) => {
     const colorScheme = useColorScheme() ?? 'light';
     const theme = Colors[colorScheme];
     const defaultSnapPoints = useMemo(() => ['50%', '75%', '90%'], []);
-    const finalSnapPoints = snapPoints || defaultSnapPoints;
+    const finalSnapPoints = snapPoints ?? defaultSnapPoints;
 
     const renderBackdrop = useCallback(
-      (props: any) => (
+      (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
         <BottomSheetBackdrop
           {...props}
           appearsOnIndex={0}
           disappearsOnIndex={-1}
-          opacity={0.5}
+          opacity={colorScheme === 'light' ? 0.45 : 0.65}
         />
       ),
-      []
+      [colorScheme],
     );
 
     return (
       <BottomSheetModal
         ref={ref}
         index={index}
-        snapPoints={finalSnapPoints}
+        snapPoints={enableDynamicSizing ? undefined : finalSnapPoints}
+        enableDynamicSizing={enableDynamicSizing}
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={[
           styles.indicator,
-          { backgroundColor: colorScheme === 'light' ? '#E0E0E0' : '#444' },
+          { backgroundColor: theme.border },
         ]}
-        backgroundStyle={[styles.background, { backgroundColor: theme.card }]}>
+        backgroundStyle={[
+          styles.background,
+          {
+            backgroundColor: theme.card,
+            borderColor: theme.border,
+          },
+        ]}>
         <BottomSheetView style={styles.content}>
-          <View collapsable={false} style={{ flex: 1 }}>
+          <View collapsable={false} style={styles.inner}>
             {children}
           </View>
         </BottomSheetView>
       </BottomSheetModal>
     );
-  }
+  },
 );
 
 AppBottomSheet.displayName = 'AppBottomSheet';
 
 const styles = StyleSheet.create({
   background: {
-    borderRadius: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderCurve: 'continuous',
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   indicator: {
     width: 40,
+    height: 4,
+    borderRadius: 2,
   },
   content: {
+    flex: 1,
+  },
+  inner: {
     flex: 1,
   },
 });

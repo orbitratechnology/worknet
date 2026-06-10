@@ -3,9 +3,12 @@ import { ThemedView } from '@/components/themed-view';
 import { AppBottomSheet } from '@/components/ui/app-bottom-sheet';
 import { MapFilterSheet } from '@/components/ui/map-filter-sheet';
 import { PROBLEMS } from '@/constants/problems';
-import { Colors } from '@/constants/theme';
+import { elevatedShadow, Layout } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
 import { useLocation } from '@/context/location';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
 import { calculateDistance, getNearbyProviders } from '@/lib/geo';
 import { ServiceProvider } from '@/types/database';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,29 +18,27 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
   Image,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  useWindowDimensions,
   View,
-  useColorScheme,
 } from 'react-native';
 import MapView, { Callout, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { width, height } = Dimensions.get('window');
-const ASPECT_RATIO = width / height;
 const LATITUDE_DELTA = 0.02;
-const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
 
 export default function MapScreen() {
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
+  const longitudeDelta = LATITUDE_DELTA * (width / height);
   const { problem: initialProblem } = useLocalSearchParams<{
     problem: string;
   }>();
   const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const { top, contentBottom } = useScreenInsets({ tabBar: true });
   const { coords, country, refreshLocation } = useLocation();
   const mapRef = useRef<MapView>(null);
   const filterBottomSheetRef = useRef<BottomSheetModal>(null);
@@ -61,7 +62,7 @@ export default function MapScreen() {
     latitude: coords?.latitude || 6.9271,
     longitude: coords?.longitude || 79.8612,
     latitudeDelta: LATITUDE_DELTA,
-    longitudeDelta: LONGITUDE_DELTA,
+    longitudeDelta: longitudeDelta,
   });
 
   const [showSearchHere, setShowSearchHere] = useState(false);
@@ -79,7 +80,7 @@ export default function MapScreen() {
         latitude: coords.latitude,
         longitude: coords.longitude,
         latitudeDelta: LATITUDE_DELTA,
-        longitudeDelta: LONGITUDE_DELTA,
+        longitudeDelta: longitudeDelta,
       };
       setMapRegion(newRegion);
       mapRef.current?.animateToRegion(newRegion, 1000);
@@ -188,7 +189,7 @@ export default function MapScreen() {
         latitude: coords.latitude,
         longitude: coords.longitude,
         latitudeDelta: LATITUDE_DELTA,
-        longitudeDelta: LONGITUDE_DELTA,
+        longitudeDelta: longitudeDelta,
       };
       mapRef.current?.animateToRegion(newRegion, 1000);
       fetchProviders(coords.latitude, coords.longitude, distance);
@@ -244,7 +245,10 @@ export default function MapScreen() {
                 style={[
                   styles.markerContainer,
                   {
-                    borderColor: theme.accent,
+                    borderColor:
+                      provider.availabilityStatus === 'online'
+                        ? '#4CAF50'
+                        : '#FF3B30',
                     backgroundColor: theme.background,
                   },
                 ]}>
@@ -253,7 +257,7 @@ export default function MapScreen() {
                     uri:
                       provider.imageUrl ||
                       'https://ui-avatars.com/api/?name=' +
-                        encodeURIComponent(provider.name),
+                      encodeURIComponent(provider.name),
                   }}
                   style={styles.markerImage}
                   resizeMode='cover'
@@ -305,7 +309,9 @@ export default function MapScreen() {
       </MapView>
 
       {/* Floating UI Elements */}
-      <SafeAreaView style={styles.floatingContent} pointerEvents='box-none'>
+      <View
+        style={[styles.floatingContent, { paddingTop: top }]}
+        pointerEvents='box-none'>
         {/* Top Header/Category Filter */}
         <View style={styles.topContainer}>
           <ScrollView
@@ -397,12 +403,16 @@ export default function MapScreen() {
           </View>
         )}
 
-        <View style={styles.bottomActions}>
+        <View style={[styles.bottomActions, { paddingBottom: contentBottom }]}>
           <TouchableOpacity
             activeOpacity={1}
             style={[
               styles.actionBtn,
-              { backgroundColor: theme.card, borderColor: theme.border },
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+                boxShadow: elevatedShadow(colorScheme),
+              },
             ]}
             onPress={handleCenterAction}>
             <MaterialCommunityIcons
@@ -412,7 +422,7 @@ export default function MapScreen() {
             />
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
 
       <AppBottomSheet ref={filterBottomSheetRef} snapPoints={['65%']}>
         <MapFilterSheet
@@ -499,14 +509,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: Layout.chipRadius,
     borderWidth: 1,
+    borderCurve: 'continuous',
     gap: 8,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   categoryText: {
     fontSize: 13,
@@ -517,14 +523,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: Layout.chipRadius,
     borderWidth: 1,
+    borderCurve: 'continuous',
     gap: 8,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   divider: {
     width: 1,
@@ -542,11 +544,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     gap: 8,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
+    borderCurve: 'continuous',
   },
   searchHereText: {
     fontSize: 13,
@@ -605,21 +603,16 @@ const styles = StyleSheet.create({
     borderRightColor: 'transparent',
   },
   bottomActions: {
-    paddingHorizontal: 16,
-    paddingBottom: 110, // Avoid tab bar
+    paddingHorizontal: Layout.screenPadding,
     alignItems: 'flex-end',
   },
   actionBtn: {
-    width: 54,
-    height: 54,
+    width: Layout.minTouch + 10,
+    height: Layout.minTouch + 10,
     borderRadius: 27,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    borderCurve: 'continuous',
   },
 });

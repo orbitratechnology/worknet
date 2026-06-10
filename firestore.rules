@@ -2,52 +2,60 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is authenticated
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper function to check if the document belongs to the signed-in user
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Users: Private profile data
-    match /users/{userId} {
-      allow read: if isAuthenticated(); // Allow other users to see basic info (names/photos)
-      allow write: if isOwner(userId);
+    function validReview() {
+      return request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5
+        && request.resource.data.providerId is string
+        && request.resource.data.userName is string;
+    }
 
-      // User sessions: Strictly private
+    function nicUnchanged() {
+      return !('nicNumber' in resource.data)
+        || resource.data.nicNumber == request.resource.data.nicNumber
+        || resource.data.nicNumber == null
+        || resource.data.nicNumber == '';
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
       match /sessions/{sessionId} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    // Service Providers: Public profiles
     match /service_providers/{providerId} {
       allow read: if true;
-      allow write: if isOwner(providerId);
+      allow create: if isOwner(providerId);
+      allow update: if isOwner(providerId) && nicUnchanged();
+      allow delete: if isOwner(providerId);
     }
 
-    // Reviews: Anyone can read, only authenticated can write once (implementation logic should be in functions but rules provide base)
     match /reviews/{reviewId} {
       allow read: if true;
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false; // Reviews should generally be immutable or handled via support
+      allow create: if isAuthenticated() && validReview();
+      allow update, delete: if false;
     }
 
-    // Categories: Read-only for everyone
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if false;
     }
 
-    // Saved Providers: Private to user
     match /saved_providers/{userId} {
       allow read, write: if isOwner(userId);
     }
 
-    // Default deny for all other collections
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,8 +1,10 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { StackHeader } from '@/components/ui/stack-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { Feather } from '@expo/vector-icons';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -15,15 +17,13 @@ import {
   StyleSheet,
   TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const { sendPasswordResetEmail } = useAuth();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const { contentBottom } = useScreenInsets();
 
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,19 +53,18 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.backButton, { opacity: 1 }]}>
-            <Feather name='arrow-left' size={24} color={theme.text} />
-          </Pressable>
-        </View>
+    <ScreenShell>
+      <StackHeader title='Reset Password' />
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: contentBottom + 24 },
+          ]}>
           <View style={styles.logoSection}>
             <View style={styles.logoTile}>
               <Image
@@ -74,20 +73,20 @@ export default function ForgotPasswordScreen() {
                 contentFit='contain'
               />
             </View>
-            <ThemedText style={styles.title} type='title'>
-              Reset Password
+            <ThemedText style={styles.title} type='title' selectable>
+              {success ? 'Check your email' : 'Forgot password?'}
             </ThemedText>
-            <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
+            <ThemedText
+              style={[styles.subtitle, { color: theme.subtext }]}
+              selectable>
               {success
-                ? 'Check your email for instructions to reset your password.'
-                : "Enter your email address and we'll send you a link to reset your password."}
+                ? 'We sent instructions to reset your password.'
+                : "Enter your email and we'll send you a reset link."}
             </ThemedText>
           </View>
 
           {!success ? (
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={styles.form}>
+            <View style={styles.form}>
               <View style={styles.inputGroup}>
                 <ThemedText style={styles.label} type='defaultSemiBold'>
                   Email Address
@@ -107,11 +106,14 @@ export default function ForgotPasswordScreen() {
                   onChangeText={setEmail}
                   keyboardType='email-address'
                   autoCapitalize='none'
+                  textContentType='emailAddress'
                 />
               </View>
 
               {error ? (
-                <ThemedText style={[styles.errorText, { color: theme.error }]}>
+                <ThemedText
+                  style={[styles.errorText, { color: theme.error }]}
+                  selectable>
                   {error}
                 </ThemedText>
               ) : null}
@@ -131,119 +133,88 @@ export default function ForgotPasswordScreen() {
                   {loading ? 'Sending link...' : 'Send Reset Link'}
                 </ThemedText>
               </Pressable>
-            </KeyboardAvoidingView>
-          ) : (
-            <View style={styles.successSection}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.backToLoginBtn,
-                  { borderColor: theme.border },
-                ]}
-                onPress={() => router.replace('/login')}>
-                <ThemedText
-                  style={styles.backToLoginText}
-                  type='defaultSemiBold'>
-                  Back to Login
-                </ThemedText>
-              </Pressable>
             </View>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.backToLoginBtn,
+                {
+                  borderColor: theme.border,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}
+              onPress={() => router.replace('/login')}>
+              <ThemedText style={styles.backToLoginText} type='defaultSemiBold'>
+                Back to Login
+              </ThemedText>
+            </Pressable>
           )}
         </ScrollView>
-      </SafeAreaView>
-    </ThemedView>
+      </KeyboardAvoidingView>
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingHorizontal: Layout.screenPadding + 4,
+    paddingTop: 24,
     paddingBottom: 40,
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 40,
   },
   logoTile: {
-    width: 120,
-    height: 120,
+    width: 96,
+    height: 96,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     overflow: 'hidden',
   },
-  logoImage: {
-    width: 120,
-    height: 120,
-  },
+  logoImage: { width: 96, height: 96 },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
-    marginBottom: 12,
+    marginBottom: 10,
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 10,
+    lineHeight: 22,
+    paddingHorizontal: 12,
   },
-  form: {
-    gap: 24,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-  },
+  form: { gap: 20 },
+  inputGroup: { gap: 8 },
+  label: { fontSize: 14 },
   input: {
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: Layout.inputRadius,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
-    height: 56,
+    height: Layout.inputHeight + 4,
     fontSize: 16,
   },
-  errorText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
+  errorText: { fontSize: 14, textAlign: 'center' },
   resetBtn: {
-    height: 56,
-    borderRadius: 18,
+    height: Layout.inputHeight + 4,
+    borderRadius: Layout.inputRadius,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
   },
-  resetBtnText: {
-    fontSize: 16,
-  },
-  successSection: {
-    alignItems: 'center',
-  },
+  resetBtnText: { fontSize: 16 },
   backToLoginBtn: {
-    height: 56,
-    borderRadius: 18,
+    height: Layout.inputHeight + 4,
+    borderRadius: Layout.inputRadius,
     borderWidth: 1,
-    paddingHorizontal: 40,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backToLoginText: {
-    fontSize: 16,
-  },
+  backToLoginText: { fontSize: 16 },
 });

@@ -1,295 +1,230 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { SearchField } from '@/components/ui/search-field';
+import { SegmentedTabs } from '@/components/ui/segmented-tabs';
+import { StackHeader } from '@/components/ui/stack-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
 import { PROBLEMS } from '@/constants/problems';
-import { Colors } from '@/constants/theme';
+import { cardShadow, Layout, type ColorScheme } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useColorScheme,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useMemo, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 type Tab = 'problems' | 'workers';
+type ProblemItem = (typeof PROBLEMS)[number];
+type WorkerItem = (typeof WORKER_TYPES)[number];
+type ExploreItem = ProblemItem | WorkerItem;
+
+function isProblemItem(item: ExploreItem): item is ProblemItem {
+  return 'slug' in item;
+}
+
+function getItemSubtitle(item: ExploreItem): string {
+  return isProblemItem(item) ? 'Problem' : 'Professional';
+}
 
 export default function ExploreScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const { contentBottom } = useScreenInsets();
+  const colorScheme = (useColorScheme() ?? 'light') as ColorScheme;
   const [activeTab, setActiveTab] = useState<Tab>('problems');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredData = useMemo(() => {
+  const filteredData = useMemo((): ExploreItem[] => {
     const query = searchQuery.toLowerCase().trim();
     if (activeTab === 'problems') {
       if (!query) return PROBLEMS;
       return PROBLEMS.filter((p) => p.name.toLowerCase().includes(query));
-    } else {
-      if (!query) return WORKER_TYPES;
-      return WORKER_TYPES.filter((w) => w.name.toLowerCase().includes(query));
     }
+    if (!query) return WORKER_TYPES;
+    return WORKER_TYPES.filter((w) => w.name.toLowerCase().includes(query));
   }, [activeTab, searchQuery]);
 
-  const handleItemPress = (item: any) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (activeTab === 'problems') {
+  const handleItemPress = useCallback(
+    (item: ExploreItem) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (isProblemItem(item)) {
+        router.push({
+          pathname: '/(tabs)/services',
+          params: { problem: item.slug },
+        });
+        return;
+      }
       router.push({
         pathname: '/(tabs)/services',
-        params: { problem: item.slug },
+        params: { professionId: item.id },
       });
-    } else {
-      router.push({
-        pathname: '/(tabs)/services',
-        params: { category: item.category || 'other', searchText: item.name },
-      });
-    }
-  };
+    },
+    [router],
+  );
 
-  const renderItem = ({ item, index }: { item: any; index: number }) => (
-    <View>
-      <TouchableOpacity
-        activeOpacity={1}
+  const renderItem = useCallback(
+    ({ item }: { item: ExploreItem }) => (
+      <Pressable
         onPress={() => handleItemPress(item)}
-        style={[
+        style={({ pressed }) => [
           styles.card,
           {
             backgroundColor: theme.card,
-            borderColor: theme.border,
-            shadowColor: theme.shadow,
+            boxShadow: cardShadow(colorScheme),
+            opacity: pressed ? 0.92 : 1,
           },
         ]}>
-        <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: item.color + '15' },
-          ]}>
+        <View style={[styles.iconContainer, { backgroundColor: theme.muted }]}>
           <MaterialCommunityIcons
-            name={item.icon as any}
-            size={32}
-            color={item.color || theme.accent}
+            name={
+              item.icon as React.ComponentProps<
+                typeof MaterialCommunityIcons
+              >['name']
+            }
+            size={26}
+            color={theme.text}
           />
         </View>
         <View style={styles.textContainer}>
-          <ThemedText style={styles.itemName} type='defaultSemiBold'>
+          <ThemedText style={styles.itemName} type='defaultSemiBold' selectable>
             {item.name}
           </ThemedText>
           <ThemedText style={[styles.categoryName, { color: theme.subtext }]}>
-            {item.category
-              ? item.category.charAt(0).toUpperCase() + item.category.slice(1)
-              : 'General'}
+            {getItemSubtitle(item)}
           </ThemedText>
         </View>
-        <Feather name='arrow-right' size={18} color={theme.border} />
-      </TouchableOpacity>
-    </View>
+        <View style={[styles.chevronWrap, { backgroundColor: theme.muted }]}>
+          <Feather name='chevron-right' size={16} color={theme.text} />
+        </View>
+      </Pressable>
+    ),
+    [colorScheme, handleItemPress, theme],
+  );
+
+  const listEmptyComponent = useCallback(
+    () => (
+      <View style={styles.emptyContainer}>
+        <Feather name='search' size={48} color={theme.border} />
+        <ThemedText style={styles.emptyTitle} selectable>
+          No exact matches
+        </ThemedText>
+        <ThemedText
+          style={[styles.emptySub, { color: theme.subtext }]}
+          selectable>
+          Try a more general search term
+        </ThemedText>
+      </View>
+    ),
+    [theme.border, theme.subtext],
   );
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            style={styles.backButton}>
-            <Feather name='arrow-left' size={24} color={theme.text} />
-          </TouchableOpacity>
-          <ThemedText style={styles.headerTitle} type='title'>
-            Explore
-          </ThemedText>
-        </View>
+    <ScreenShell>
+      <StackHeader title='Explore' />
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View
-            style={[
-              styles.searchField,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}>
-            <Feather name='search' size={20} color={theme.accent} />
-            <TextInput
-              placeholder={
-                activeTab === 'problems'
-                  ? 'Describe your problem...'
-                  : 'Find a professional...'
-              }
-              placeholderTextColor={theme.subtext}
-              style={[styles.searchInput, { color: theme.text }]}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-            />
-            {searchQuery !== '' && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Feather name='x-circle' size={18} color={theme.subtext} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Tabs */}
-        <View style={styles.tabContainer}>
-          {(['problems', 'workers'] as const).map((tab) => (
-            <Pressable
-              key={tab}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setActiveTab(tab);
-              }}
-              style={[
-                styles.tab,
-                activeTab === tab && { borderBottomColor: theme.accent },
-              ]}>
-              <ThemedText
-                style={[
-                  styles.tabText,
-                  { color: activeTab === tab ? theme.accent : theme.subtext },
-                  activeTab === tab && { fontWeight: '800' },
-                ]}>
-                {tab === 'problems' ? 'Problems' : 'Worker Roles'}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </View>
-
-        <FlatList
-          data={filteredData}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Feather name='search' size={48} color={theme.border} />
-              <ThemedText style={styles.emptyTitle}>
-                No exact matches
-              </ThemedText>
-              <ThemedText style={[styles.emptySub, { color: theme.subtext }]}>
-                Try a more general search term
-              </ThemedText>
-            </View>
+      <View style={styles.searchWrap}>
+        <SearchField
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={
+            activeTab === 'problems'
+              ? 'Describe your problem...'
+              : 'Find a professional...'
           }
         />
-      </SafeAreaView>
-    </ThemedView>
+      </View>
+
+      <View style={styles.tabsWrap}>
+        <SegmentedTabs
+          tabs={[
+            { key: 'problems', label: 'Problems' },
+            { key: 'workers', label: 'Worker Roles' },
+          ]}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
+      </View>
+
+      <FlatList
+        data={filteredData}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: contentBottom + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={listEmptyComponent}
+      />
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  searchWrap: {
+    paddingHorizontal: Layout.screenPadding,
+    marginBottom: Layout.itemGap,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  searchField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 54,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-  },
-  tab: {
-    paddingVertical: 12,
-    marginRight: 24,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '600',
+  tabsWrap: {
+    paddingHorizontal: Layout.screenPadding,
+    marginBottom: Layout.sectionGap - 8,
   },
   listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingHorizontal: Layout.screenPadding,
+    gap: Layout.itemGap,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 12,
+    padding: 14,
+    borderRadius: Layout.cardRadius,
+    borderCurve: 'continuous',
+    gap: 12,
   },
   iconContainer: {
-    width: 56,
-    height: 56,
+    width: 52,
+    height: 52,
     borderRadius: 16,
+    borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
   },
   textContainer: {
     flex: 1,
-    marginLeft: 16,
+    minWidth: 0,
   },
   itemName: {
     fontSize: 16,
-    marginBottom: 4,
+    marginBottom: 2,
     letterSpacing: -0.3,
   },
   categoryName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
   },
+  chevronWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: 60,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     marginTop: 16,
   },
   emptySub: {
     fontSize: 14,
     marginTop: 8,
+    textAlign: 'center',
   },
 });

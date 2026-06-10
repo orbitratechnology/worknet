@@ -1,13 +1,18 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { AppBottomSheet } from '@/components/ui/app-bottom-sheet';
 import { FilterOptions, FilterSheet } from '@/components/ui/filter-sheet';
-import { ServiceListCard } from '@/components/ui/service-list-card';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { SearchField } from '@/components/ui/search-field';
+import { ServiceCard } from '@/components/ui/service-card';
 import { PROBLEMS, Problem } from '@/constants/problems';
-import { Colors } from '@/constants/theme';
+import { Layout } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
 import { useLocation } from '@/context/location';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
 import { db } from '@/lib/firebase';
+import { matchProviders, sortModeFromChip } from '@/lib/match-providers';
 import { calculateDistance, getNearbyProviders } from '@/lib/geo';
 import { ServiceProvider } from '@/types/database';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,7 +29,7 @@ import {
   query,
   startAfter,
   where,
-} from 'firebase/firestore';
+} from '@react-native-firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,15 +38,13 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 const FILTER_CHIPS = [
   'Filters',
+  'Best Match',
   'Nearest',
   'Top Rated',
   'Available Now',
@@ -52,16 +55,21 @@ export default function ServicesScreen() {
     category: initialCategory,
     problem: initialProblem,
     searchText: initialSearch,
+    professionId: initialProfessionId,
   } = useLocalSearchParams<{
     category: string;
     problem: string;
     searchText: string;
+    professionId: string;
   }>();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const { contentBottom } = useScreenInsets({ tabBar: true });
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const [activeFilter, setActiveFilter] =
-    useState<(typeof FILTER_CHIPS)[number]>('Nearest');
+    useState<(typeof FILTER_CHIPS)[number]>('Best Match');
+  const [professionId, setProfessionId] = useState<string | null>(
+    initialProfessionId || null,
+  );
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     initialCategory || null,
   );
@@ -71,6 +79,7 @@ export default function ServicesScreen() {
       : null,
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [searchText, setSearchText] = useState(initialSearch || '');
   const [services, setServices] = useState<ServiceProvider[]>([]);
   const [filteredServices, setFilteredServices] = useState<ServiceProvider[]>(
@@ -104,16 +113,25 @@ export default function ServicesScreen() {
     if (initialSearch) {
       setSearchText(initialSearch);
     }
-  }, [initialCategory, initialProblem, initialSearch]);
+    if (initialProfessionId) {
+      setProfessionId(initialProfessionId);
+    }
+  }, [initialCategory, initialProblem, initialSearch, initialProfessionId]);
 
   useEffect(() => {
     async function setupQuery() {
-      setLoading(true);
+      if (!refreshing) {
+        setLoading(true);
+      }
       setLastVisible(null);
       setHasMore(true);
 
-      // 1. Check if Nearest chip or distance filter is active
-      if (activeFilter === 'Nearest' && coords) {
+      const onlyAvailable = activeFilter === 'Available Now';
+
+      if (
+        (activeFilter === 'Nearest' || activeFilter === 'Best Match') &&
+        coords
+      ) {
         try {
           // "Nearest" now only sorts, not filters by distance range
           // To implement sorting by nearest in Firestore, we use geohashes
@@ -127,28 +145,27 @@ export default function ServicesScreen() {
             radius,
           );
 
-          // Sort by actual distance
-          let sortedResults = (
-            results as (ServiceProvider & { distance: number })[]
-          ).sort((a, b) => a.distance - b.distance);
-
-          if (selectedProblem) {
-            const allowedNames = selectedProblem.workerTypes?.map(
-              (id) => WORKER_TYPES.find((w) => w.id === id)?.name,
-            );
-            sortedResults = sortedResults.filter(
-              (p) =>
-                allowedNames?.includes(p.primaryProfession) ||
-                p.tags?.includes(selectedProblem.slug),
-            );
-          }
+          let sortedResults = matchProviders(
+            results as (ServiceProvider & { distance: number })[],
+            {
+              coords,
+              problemSlug: selectedProblem?.slug,
+              professionId,
+              searchText,
+              sortMode: sortModeFromChip(activeFilter),
+              onlyAvailable,
+            },
+          );
 
           setServices(sortedResults);
           setLoading(false);
+          setRefreshing(false);
           setHasMore(false); // getNearbyProviders currently fetches all at once
           return;
         } catch (error) {
           console.error('Error in nearby search:', error);
+          setLoading(false);
+          setRefreshing(false);
         }
       }
 
@@ -197,20 +214,18 @@ export default function ServicesScreen() {
       setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1] || null);
       setHasMore(querySnapshot.docs.length === PAGE_SIZE);
 
-      let filtered = providers;
-      if (selectedProblem) {
-        const allowedNames = selectedProblem.workerTypes?.map(
-          (id) => WORKER_TYPES.find((w) => w.id === id)?.name,
-        );
-        filtered = providers.filter(
-          (p) =>
-            allowedNames?.includes(p.primaryProfession) ||
-            p.tags?.includes(selectedProblem.slug),
-        );
-      }
-
-      setServices(filtered);
+      setServices(
+        matchProviders(providers, {
+          coords,
+          problemSlug: selectedProblem?.slug,
+          professionId,
+          searchText,
+          sortMode: sortModeFromChip(activeFilter),
+          onlyAvailable: activeFilter === 'Available Now',
+        }),
+      );
       setLoading(false);
+      setRefreshing(false);
     }
 
     setupQuery();
@@ -219,8 +234,11 @@ export default function ServicesScreen() {
     advancedFilters,
     selectedCategory,
     selectedProblem,
+    professionId,
     coords,
     country,
+    refreshTrigger,
+    searchText,
   ]);
 
   const loadMore = async () => {
@@ -273,17 +291,14 @@ export default function ServicesScreen() {
       setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1] || null);
       setHasMore(querySnapshot.docs.length === PAGE_SIZE);
 
-      let filtered = providers;
-      if (selectedProblem) {
-        const allowedNames = selectedProblem.workerTypes?.map(
-          (id) => WORKER_TYPES.find((w) => w.id === id)?.name,
-        );
-        filtered = providers.filter(
-          (p) =>
-            allowedNames?.includes(p.primaryProfession) ||
-            p.tags?.includes(selectedProblem.slug),
-        );
-      }
+      const filtered = matchProviders(providers, {
+        coords,
+        problemSlug: selectedProblem?.slug,
+        professionId,
+        searchText,
+        sortMode: sortModeFromChip(activeFilter),
+        onlyAvailable: activeFilter === 'Available Now',
+      });
 
       setServices((prev) => [...prev, ...filtered]);
     } catch (error) {
@@ -293,59 +308,50 @@ export default function ServicesScreen() {
     }
   };
 
-  // Client-side search
+  // Client-side refinement on matched results
   useEffect(() => {
-    let result = [...services];
-
-    // Search filter
-    if (searchText.trim()) {
-      const lowerSearch = searchText.toLowerCase();
-      result = result.filter(
-        (s) =>
-          s.name.toLowerCase().includes(lowerSearch) ||
-          (s.title && s.title.toLowerCase().includes(lowerSearch)) ||
-          (s.primaryProfession &&
-            s.primaryProfession.toLowerCase().includes(lowerSearch)) ||
-          (s.tags &&
-            s.tags.some((t) => t.toLowerCase().includes(lowerSearch))) ||
-          (s.bio && s.bio.toLowerCase().includes(lowerSearch)),
-      );
-    }
-
-    // Distance filter
-    if (advancedFilters?.distance && coords && activeFilter !== 'Nearest') {
-      const maxDistance = advancedFilters.distance;
-
-      if (maxDistance > 0) {
-        result = result.filter((s) => {
-          if (s.location?.latitude && s.location?.longitude) {
-            const dist = calculateDistance(
-              coords.latitude,
-              coords.longitude,
-              s.location.latitude,
-              s.location.longitude,
-            );
-            return dist <= maxDistance;
-          }
-          return false;
-        });
-      }
-    }
+    let result = matchProviders(services, {
+      coords,
+      problemSlug: selectedProblem?.slug,
+      professionId,
+      searchText,
+      sortMode: sortModeFromChip(activeFilter),
+      onlyAvailable: activeFilter === 'Available Now',
+      minRating:
+        advancedFilters?.rating && advancedFilters.rating !== 'All Ratings'
+          ? parseFloat(advancedFilters.rating)
+          : undefined,
+      maxDistanceKm:
+        advancedFilters?.distance && activeFilter !== 'Nearest'
+          ? advancedFilters.distance
+          : undefined,
+    });
 
     // Price range filter
     if (advancedFilters?.priceRange && advancedFilters.priceRange !== 'All') {
       const range = advancedFilters.priceRange;
       result = result.filter((s) => {
         const rate = s.pricing?.baseRate || 0;
-        if (range === 'Below $50' || range === '< $50') return rate < 50;
-        if (range === '$50 - $100') return rate >= 50 && rate <= 100;
-        if (range === 'Above $100' || range === '> $100') return rate > 100;
+        if (range === '< LKR 1k' || range === 'Below $50' || range === '< $50')
+          return rate < 1000;
+        if (range === 'LKR 1k–3k' || range === '$50 - $100')
+          return rate >= 1000 && rate <= 3000;
+        if (range === '> LKR 3k' || range === 'Above $100' || range === '> $100')
+          return rate > 3000;
         return true;
       });
     }
 
     setFilteredServices(result);
-  }, [searchText, services, advancedFilters, coords, activeFilter]);
+  }, [
+    searchText,
+    services,
+    advancedFilters,
+    coords,
+    activeFilter,
+    selectedProblem,
+    professionId,
+  ]);
 
   const handleOpenFilters = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -355,17 +361,11 @@ export default function ServicesScreen() {
   const onRefresh = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setRefreshing(true);
-    // The setupQuery in useEffect triggers when these deps change.
-    // If we want a true refresh, we can toggle or just force it.
-    // For now, let's just trigger a re-run of the nearest logic if active
-    // or just wait for the effect to finish if we add a refresh trigger.
-    // For simplicity, let's just re-set the state to trigger the effect.
-    setActiveFilter((prev) => (prev === 'Nearest' ? 'Nearest' : prev));
-    setRefreshing(false);
+    setRefreshTrigger((prev) => prev + 1);
   }, []);
 
   const renderServiceItem = useCallback(
-    ({ item, index }: { item: ServiceProvider; index: number }) => {
+    ({ item }: { item: ServiceProvider }) => {
       let displayDistance = 'Nearby';
       if (coords && item.location?.latitude && item.location?.longitude) {
         const dist = calculateDistance(
@@ -374,25 +374,30 @@ export default function ServicesScreen() {
           item.location.latitude,
           item.location.longitude,
         );
-        displayDistance = dist < 1 ? 'Under 1km' : `${dist.toFixed(1)}km`;
+        displayDistance = dist < 1 ? 'Under 1 km' : `${dist.toFixed(1)} km`;
       }
 
       return (
-        <View>
-          <ServiceListCard
+        <View style={styles.gridItem}>
+          <ServiceCard
             id={item.id}
             name={item.name}
             role={item.primaryProfession || 'Professional'}
-            rating={item.rating || 0}
-            isVerified={item.isVerified}
             distance={displayDistance}
-            startingPrice={
+            price={
               item.pricing?.baseRate
                 ? `LKR ${item.pricing.baseRate}/hr`
-                : 'LKR 1,500/hr'
+                : 'Contact for price'
             }
             imageUrl={item.imageUrl}
             availabilityStatus={item.availabilityStatus}
+            rating={item.rating}
+            reviewCount={item.reviewCount}
+            matchReason={
+              (item as any).matchReason ||
+              item.primaryProfession
+            }
+            showSave
           />
         </View>
       );
@@ -416,263 +421,252 @@ export default function ServicesScreen() {
   );
 
   return (
-    <ThemedView style={[styles.container]}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Search Header */}
-        <View style={styles.header}>
-          <View
-            style={[
-              styles.searchContainer,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}>
-            <Feather name='search' size={18} color={theme.accent} />
-            <TextInput
-              placeholder='Search services...'
-              placeholderTextColor={theme.subtext}
-              style={[styles.searchInput, { color: theme.text }]}
-              value={searchText}
-              onChangeText={setSearchText}
-            />
-            {searchText !== '' && (
-              <TouchableOpacity onPress={() => setSearchText('')}>
-                <Feather name='x-circle' size={18} color={theme.subtext} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+    <ScreenShell>
+      <ScreenHeader title='Services' subtitle='Find trusted pros near you' />
 
-        {/* Rapid Problem Switcher */}
-        <View style={styles.problemSwitcher}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.problemScroll}>
-            {PROBLEMS.slice(0, 10).map((prob, index) => (
-              <View key={prob.id}>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setSelectedProblem(prob);
-                  }}
-                  style={[
-                    styles.problemMiniChip,
-                    {
-                      backgroundColor:
-                        selectedProblem?.slug === prob.slug
-                          ? prob.color || theme.text
-                          : theme.card,
-                      borderColor: theme.border,
-                    },
-                  ]}>
-                  <MaterialCommunityIcons
-                    name={prob.icon as any}
-                    size={14}
-                    color={
-                      selectedProblem?.slug === prob.slug
-                        ? '#FFFFFF'
-                        : prob.color || theme.accent
-                    }
-                  />
-                  <ThemedText
-                    style={[
-                      styles.problemMiniText,
-                      {
-                        color:
-                          selectedProblem?.slug === prob.slug
-                            ? '#FFFFFF'
-                            : theme.text,
-                      },
-                    ]}>
-                    {prob.name.split(' / ')[0]}
-                  </ThemedText>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
+      <View style={styles.searchWrap}>
+        <SearchField
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder='Search services...'
+        />
+      </View>
 
-        {/* Filter Chips */}
-        <View style={styles.filterWrapper}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterScroll}>
-            {/* Advanced Filters Button */}
-            <TouchableOpacity
-              onPress={handleOpenFilters}
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: advancedFilters ? theme.text : theme.card,
-                  borderColor: theme.border,
-                },
-              ]}>
-              <Feather
-                name='sliders'
-                size={14}
-                color={advancedFilters ? theme.background : theme.subtext}
-                style={{ marginRight: 6 }}
-              />
-              <ThemedText
+      {/* Rapid Problem Switcher */}
+      <View style={styles.problemSwitcher}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.problemScroll}>
+          {PROBLEMS.slice(0, 10).map((prob, index) => (
+            <View key={prob.id}>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setSelectedProblem(prob);
+                }}
                 style={[
-                  styles.filterText,
+                  styles.problemMiniChip,
                   {
-                    color: advancedFilters ? theme.background : theme.text,
+                    backgroundColor:
+                      selectedProblem?.slug === prob.slug
+                        ? theme.text
+                        : theme.card,
+                    borderColor: theme.border,
                   },
                 ]}>
-                Filters
-                {Object.keys(advancedFilters || {}).filter(
+                <MaterialCommunityIcons
+                  name={prob.icon as any}
+                  size={14}
+                  color={
+                    selectedProblem?.slug === prob.slug
+                      ? theme.onAccent
+                      : theme.text
+                  }
+                />
+                <ThemedText
+                  style={[
+                    styles.problemMiniText,
+                    {
+                      color:
+                        selectedProblem?.slug === prob.slug
+                          ? theme.onAccent
+                          : theme.text,
+                    },
+                  ]}>
+                  {prob.name.split(' / ')[0]}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Filter Chips */}
+      <View style={styles.filterWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}>
+          {/* Advanced Filters Button */}
+          <TouchableOpacity
+            onPress={handleOpenFilters}
+            style={[
+              styles.filterChip,
+              {
+                backgroundColor: advancedFilters ? theme.text : theme.card,
+                borderColor: theme.border,
+              },
+            ]}>
+            <Feather
+              name='sliders'
+              size={14}
+              color={advancedFilters ? theme.background : theme.subtext}
+              style={{ marginRight: 6 }}
+            />
+            <ThemedText
+              style={[
+                styles.filterText,
+                {
+                  color: advancedFilters ? theme.background : theme.text,
+                },
+              ]}>
+              Filters
+              {Object.keys(advancedFilters || {}).filter(
+                (k) =>
+                  advancedFilters?.[k as keyof FilterOptions] &&
+                  advancedFilters[k as keyof FilterOptions] !== 'All' &&
+                  advancedFilters[k as keyof FilterOptions] !== 'All Ratings',
+              ).length > 0
+                ? ` (${Object.keys(advancedFilters || {}).filter(
                   (k) =>
                     advancedFilters?.[k as keyof FilterOptions] &&
                     advancedFilters[k as keyof FilterOptions] !== 'All' &&
-                    advancedFilters[k as keyof FilterOptions] !== 'All Ratings',
-                ).length > 0
-                  ? ` (${
-                      Object.keys(advancedFilters || {}).filter(
-                        (k) =>
-                          advancedFilters?.[k as keyof FilterOptions] &&
-                          advancedFilters[k as keyof FilterOptions] !== 'All' &&
-                          advancedFilters[k as keyof FilterOptions] !==
-                            'All Ratings',
-                      ).length
-                    })`
-                  : ''}
-              </ThemedText>
-            </TouchableOpacity>
+                    advancedFilters[k as keyof FilterOptions] !==
+                    'All Ratings',
+                ).length
+                })`
+                : ''}
+            </ThemedText>
+          </TouchableOpacity>
 
-            {/* Selected Problem Chip */}
-            {selectedProblem && (
-              <View>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedProblem(null);
-                  }}
-                  style={[
-                    styles.filterChip,
-                    {
-                      backgroundColor: theme.accent,
-                      borderColor: theme.border,
-                    },
-                  ]}>
-                  <MaterialCommunityIcons
-                    name={selectedProblem.icon as any}
-                    size={16}
-                    color={theme.onAccent}
-                    style={{ marginRight: 6 }}
-                  />
-                  <ThemedText
-                    style={[styles.filterText, { color: theme.onAccent }]}>
-                    {selectedProblem.name.length > 20
-                      ? selectedProblem.name.slice(0, 17) + '...'
-                      : selectedProblem.name}
-                  </ThemedText>
-                  <Feather
-                    name='x'
-                    size={12}
-                    color={theme.onAccent}
-                    style={{ marginLeft: 6 }}
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Selected Category Chip (only if no problem) */}
-            {selectedCategory && !selectedProblem && (
-              <View>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedCategory(null);
-                  }}
-                  style={[
-                    styles.filterChip,
-                    {
-                      backgroundColor: theme.accent,
-                      borderColor: theme.border,
-                    },
-                  ]}>
-                  <ThemedText
-                    style={[styles.filterText, { color: theme.onAccent }]}>
-                    {selectedCategory.charAt(0).toUpperCase() +
-                      selectedCategory.slice(1)}
-                  </ThemedText>
-                  <Feather
-                    name='x'
-                    size={12}
-                    style={{ marginLeft: 6, color: theme.onAccent }}
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Basic Filter Chips */}
-            {FILTER_CHIPS.slice(1).map((filter) => (
+          {/* Selected Problem Chip */}
+          {selectedProblem && (
+            <View>
               <TouchableOpacity
-                key={filter}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setActiveFilter(filter);
+                  setSelectedProblem(null);
                 }}
                 style={[
                   styles.filterChip,
                   {
-                    backgroundColor:
-                      activeFilter === filter ? theme.text : theme.card,
+                    backgroundColor: theme.text,
+                    borderColor: theme.border,
+                  },
+                ]}>
+                <MaterialCommunityIcons
+                  name={selectedProblem.icon as any}
+                  size={16}
+                  color={theme.onAccent}
+                  style={{ marginRight: 6 }}
+                />
+                <ThemedText
+                  style={[styles.filterText, { color: theme.onAccent }]}>
+                  {selectedProblem.name.length > 20
+                    ? selectedProblem.name.slice(0, 17) + '...'
+                    : selectedProblem.name}
+                </ThemedText>
+                <Feather
+                  name='x'
+                  size={12}
+                  color={theme.onAccent}
+                  style={{ marginLeft: 6 }}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Selected Category Chip (only if no problem) */}
+          {selectedCategory && !selectedProblem && (
+            <View>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedCategory(null);
+                }}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor: theme.text,
                     borderColor: theme.border,
                   },
                 ]}>
                 <ThemedText
-                  style={[
-                    styles.filterText,
-                    {
-                      color:
-                        activeFilter === filter ? theme.background : theme.text,
-                    },
-                  ]}>
-                  {filter}
+                  style={[styles.filterText, { color: theme.onAccent }]}>
+                  {selectedCategory.charAt(0).toUpperCase() +
+                    selectedCategory.slice(1)}
                 </ThemedText>
+                <Feather
+                  name='x'
+                  size={12}
+                  style={{ marginLeft: 6, color: theme.onAccent }}
+                />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+            </View>
+          )}
 
-        {/* Services List */}
-        {loading ? (
-          <View style={styles.center}>
-            <ActivityIndicator size='large' color={theme.accent} />
-          </View>
-        ) : (
-          <FlatList
-            data={filteredServices}
-            renderItem={renderServiceItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={8}
-            maxToRenderPerBatch={10}
-            windowSize={5}
-            removeClippedSubviews={Platform.OS === 'android'}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={theme.accent}
-              />
-            }
-            onEndReached={loadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={
-              loadingMore ? (
-                <View style={{ paddingVertical: 20 }}>
-                  <ActivityIndicator size='small' color={theme.accent} />
-                </View>
-              ) : null
-            }
-            ListEmptyComponent={listEmptyComponent}
-          />
-        )}
-      </SafeAreaView>
+          {/* Basic Filter Chips */}
+          {FILTER_CHIPS.slice(1).map((filter) => (
+            <TouchableOpacity
+              key={filter}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActiveFilter(filter);
+              }}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor:
+                    activeFilter === filter ? theme.text : theme.card,
+                  borderColor: theme.border,
+                },
+              ]}>
+              <ThemedText
+                style={[
+                  styles.filterText,
+                  {
+                    color:
+                      activeFilter === filter ? theme.background : theme.text,
+                  },
+                ]}>
+                {filter}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Services List */}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size='large' color={theme.text} />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredServices}
+          renderItem={renderServiceItem}
+          keyExtractor={keyExtractor}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: contentBottom },
+          ]}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.text}
+            />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size='small' color={theme.text} />
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={listEmptyComponent}
+        />
+      )}
 
       <AppBottomSheet ref={bottomSheetRef} snapPoints={['90%']}>
         <FilterSheet
@@ -693,53 +687,28 @@ export default function ServicesScreen() {
           }}
         />
       </AppBottomSheet>
-    </ThemedView>
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 52,
-    borderRadius: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    fontWeight: '500',
+  searchWrap: {
+    paddingHorizontal: Layout.screenPadding,
+    marginBottom: 12,
   },
   problemSwitcher: {
     marginBottom: 12,
   },
   problemScroll: {
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.screenPadding,
     gap: 8,
   },
   problemMiniChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: Layout.chipRadius,
     borderWidth: 1,
     gap: 6,
   },
@@ -751,7 +720,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   filterScroll: {
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.screenPadding,
     gap: 8,
   },
   filterChip: {
@@ -759,7 +728,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 14,
+    borderRadius: Layout.chipRadius,
     borderWidth: 1,
   },
   filterText: {
@@ -767,8 +736,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingTop: 4,
+  },
+  columnWrapper: {
+    gap: Layout.itemGap,
+    paddingHorizontal: 10,
+    marginBottom: Layout.itemGap,
+  },
+  gridItem: {
+    width: '48%',
+    maxWidth: '48%',
   },
   center: {
     flex: 1,

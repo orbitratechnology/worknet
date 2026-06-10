@@ -1,8 +1,11 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { StackHeader } from '@/components/ui/stack-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
-import { uploadFile } from '@/lib/storage';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
+import { uploadLocalFile } from '@/lib/storage';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
@@ -18,15 +21,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const { user, userProfile, updateUserProfile } = useAuth();
-  const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const theme = useTheme();
+  const { bottom } = useScreenInsets();
 
   // Form State
   const [name, setName] = useState('');
@@ -61,7 +62,7 @@ export default function EditProfileScreen() {
         const extension = uri.split('.').pop();
         const path = `profile_photos/${user?.uid}/${Date.now()}.${extension}`;
 
-        const downloadUrl = await uploadFile(uri, path);
+        const downloadUrl = await uploadLocalFile(uri, path);
         setPhotoUrl(downloadUrl);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -104,37 +105,15 @@ export default function EditProfileScreen() {
       '&background=000000&color=FFFFFF';
 
   return (
-    <ThemedView style={[styles.container]}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header */}
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: theme.background,
-              borderBottomColor: theme.border,
-            },
-          ]}>
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            style={styles.headerBtn}>
-            <Feather name='x' size={24} color={theme.text} />
-          </TouchableOpacity>
-          <ThemedText style={styles.headerTitle} type='defaultSemiBold'>
-            Edit Profile
-          </ThemedText>
-          <View style={styles.headerBtn} />
-        </View>
+    <ScreenShell>
+      <StackHeader title='Edit Profile' border />
 
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}>
             {/* Avatar Section */}
             <View style={styles.avatarSection}>
               <TouchableOpacity
@@ -228,18 +207,21 @@ export default function EditProfileScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
 
-        {/* Sticky Bottom Bar */}
         <View
           style={[
             styles.bottomBar,
-            { backgroundColor: theme.card, borderTopColor: theme.border },
+            {
+              backgroundColor: theme.card,
+              borderTopColor: theme.border,
+              paddingBottom: Math.max(bottom, 16),
+            },
           ]}>
           <TouchableOpacity
             disabled={isSaving}
             onPress={handleSave}
             style={[
               styles.saveButton,
-              { backgroundColor: theme.accent, shadowColor: theme.accent },
+              { backgroundColor: theme.accent },
             ]}>
             {isSaving ? (
               <ActivityIndicator color={theme.onAccent} />
@@ -255,38 +237,15 @@ export default function EditProfileScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    </ThemedView>
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 60,
-    borderBottomWidth: 1,
-  },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-  },
+  container: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 32,
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: 24,
   },
   avatarSection: {
     alignItems: 'center',
@@ -340,15 +299,17 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: Layout.fieldRadius,
+    borderCurve: 'continuous',
     paddingHorizontal: 16,
-    height: 54,
+    height: Layout.inputHeight + 2,
     fontSize: 16,
   },
   textArea: {
     height: 120,
     paddingTop: 16,
     textAlignVertical: 'top',
+    borderRadius: Layout.fieldRadius,
   },
   charCount: {
     fontSize: 12,
@@ -365,16 +326,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   saveButton: {
-    height: 56,
-    borderRadius: 18,
+    height: Layout.inputHeight + 4,
+    borderRadius: Layout.inputRadius,
+    borderCurve: 'continuous',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    elevation: 4,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
   },
   saveButtonText: {
     fontSize: 16,

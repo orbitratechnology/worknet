@@ -1,43 +1,109 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { ProfileAvatar } from '@/components/profile/profile-avatar';
+import { WorkSamplesCarousel } from '@/components/profile/work-samples-carousel';
+import { ReviewList } from '@/components/reviews/review-list';
+import {
+  WriteReviewSheet,
+  WriteReviewSheetRef,
+} from '@/components/reviews/write-review-sheet';
+import { StackHeader } from '@/components/ui/stack-header';
+import { ScreenShell } from '@/components/ui/screen-shell';
+import { cardShadow, Layout } from '@/constants/theme';
+import { formatLanguagesLabel } from '@/constants/worker-languages';
 import { db } from '@/lib/firebase';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
+import { useAuthGate } from '@/context/auth-gate';
+import { useAuth } from '@/context/auth';
+import { useSavedProviders } from '@/hooks/use-saved-providers';
+import { useProviderReviews } from '@/hooks/use-provider-reviews';
 import { ServiceProvider } from '@/types/database';
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
+import { doc, getDoc } from '@react-native-firebase/firestore';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Linking,
+  Pressable,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
   View,
-  useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
+const REVIEW_PREVIEW_COUNT = 2;
+
+function StatColumn({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
+  const colorScheme = useColorScheme() ?? 'light';
+
+  return (
+    <View
+      style={[
+        styles.statCard,
+        {
+          backgroundColor: theme.card,
+          boxShadow: cardShadow(colorScheme),
+        },
+      ]}>
+      <ThemedText style={styles.statValue} selectable numberOfLines={1}>
+        {value}
+      </ThemedText>
+      <ThemedText
+        style={[styles.statLabel, { color: theme.subtext }]}
+        selectable>
+        {label}
+      </ThemedText>
+    </View>
+  );
+}
 
 export default function PublicProfileScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const providerId = typeof id === 'string' ? id : undefined;
+  const { user } = useAuth();
+  const { gateAction } = useAuthGate();
+  const { isSaved, toggleSave } = useSavedProviders();
+  const reviewSheetRef = useRef<WriteReviewSheetRef>(null);
+  const theme = useTheme();
   const colorScheme = useColorScheme() ?? 'light';
-  const theme = Colors[colorScheme];
+  const { bottom } = useScreenInsets();
 
   const [provider, setProvider] = useState<ServiceProvider | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleChat = async () => {
+  const {
+    reviews,
+    refresh: refreshReviews,
+  } = useProviderReviews(providerId);
+
+  const hasUserReview = !!user && reviews.some((r) => r.userId === user.uid);
+  const previewReviews = useMemo(
+    () => reviews.slice(0, REVIEW_PREVIEW_COUNT),
+    [reviews],
+  );
+
+  const handleWhatsApp = async () => {
     if (!provider) return;
     const number = provider.whatsappNumber || provider.phoneNumber;
     if (!number) {
-      Alert.alert('Error', 'No contact number available');
+      Alert.alert(
+        'No WhatsApp number',
+        'This provider has not added a WhatsApp number yet. Try calling instead.',
+      );
       return;
     }
     const cleanNumber = number.replace(/\D/g, '');
-    const url = `whatsapp://send?phone=${cleanNumber}`;
+    const city = provider.location?.homeCity ?? 'my area';
+    const profession = provider.primaryProfession ?? 'help';
+    const text = encodeURIComponent(
+      `Hi ${provider.name}, I found you on Worknet. I need help with ${profession} in ${city}. Are you available?`,
+    );
+    const url = `whatsapp://send?phone=${cleanNumber}&text=${text}`;
     try {
       const canOpen = await Linking.canOpenURL(url);
       if (canOpen) {
@@ -46,35 +112,57 @@ export default function PublicProfileScreen() {
         await Linking.openURL(`https://wa.me/${cleanNumber}`);
       }
     } catch {
-      Alert.alert('Error', 'Could not open WhatsApp');
+      Alert.alert(
+        'Could not open WhatsApp',
+        'Check that WhatsApp is installed, or try calling instead.',
+      );
     }
   };
 
   const handleCall = async () => {
     if (!provider?.phoneNumber) {
-      Alert.alert('Error', 'No phone number available');
+      Alert.alert(
+        'No phone number',
+        'This provider has not added a phone number yet.',
+      );
       return;
     }
     try {
       await Linking.openURL(`tel:${provider.phoneNumber}`);
     } catch {
-      Alert.alert('Error', 'Could not open phone app');
+      Alert.alert(
+        'Could not start call',
+        'Your device could not open the phone app. Try WhatsApp instead.',
+      );
     }
   };
 
   const fetchProvider = useCallback(async () => {
-    if (!id) return;
+    if (!providerId) {
+      setLoading(false);
+      setError('Missing provider ID.');
+      return;
+    }
+    setError(null);
     try {
-      const docSnap = await getDoc(doc(db, 'service_providers', id as string));
+      const docSnap = await getDoc(doc(db, 'service_providers', providerId));
       if (docSnap.exists()) {
-        setProvider(docSnap.data() as ServiceProvider);
+        setProvider({ id: docSnap.id, ...docSnap.data() } as ServiceProvider);
+      } else {
+        setProvider(null);
+        setError('This provider profile is no longer available.');
       }
-    } catch (error) {
-      console.error('Error fetching provider:', error);
+    } catch (fetchError) {
+      console.error('Error fetching provider:', fetchError);
+      setError('Could not load this profile. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [providerId]);
+
+  const refreshProfile = useCallback(async () => {
+    await Promise.all([fetchProvider(), refreshReviews()]);
+  }, [fetchProvider, refreshReviews]);
 
   useEffect(() => {
     fetchProvider();
@@ -82,249 +170,193 @@ export default function PublicProfileScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size='large' color={theme.accent} />
-      </View>
+      <ScreenShell>
+        <View style={styles.center}>
+          <ActivityIndicator size='large' color={theme.text} />
+        </View>
+      </ScreenShell>
     );
   }
 
   if (!provider) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <ThemedText>Provider not found</ThemedText>
-      </View>
+      <ScreenShell>
+        <StackHeader title='Profile' />
+        <View style={styles.center}>
+          <ThemedText style={{ marginBottom: 8 }} selectable>
+            {error || 'Provider not found'}
+          </ThemedText>
+          <Pressable
+            onPress={() => {
+              setLoading(true);
+              fetchProvider();
+            }}
+            style={[styles.retryBtn, { borderColor: theme.border }]}>
+            <ThemedText selectable>Try again</ThemedText>
+          </Pressable>
+          <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
+            <ThemedText style={{ color: theme.subtext }} selectable>
+              Go back
+            </ThemedText>
+          </Pressable>
+        </View>
+      </ScreenShell>
     );
   }
 
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.headerButton}>
-            <Feather name='arrow-left' size={24} color={theme.text} />
-          </TouchableOpacity>
-          <ThemedText style={styles.headerTitle} type='defaultSemiBold'>
-            {provider.title || 'Service Provider'}
-          </ThemedText>
-          <TouchableOpacity style={styles.headerButton}>
-            <Feather name='share-2' size={22} color={theme.text} />
-          </TouchableOpacity>
-        </View>
+  const avatarImage =
+    provider.imageUrl ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      provider.name,
+    )}&background=222222&color=FAF7F2&size=512&bold=true`;
+  const isOnline = provider.availabilityStatus === 'online';
+  const reviewCount = provider.reviewCount ?? reviews.length;
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
-          {/* Profile Basic Info */}
-          <View style={styles.profileSection}>
-            <View style={styles.avatarContainer}>
-              <Image
-                source={
-                  provider.imageUrl ||
-                  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&h=300&fit=crop'
-                }
-                style={styles.avatar}
-              />
-              <View
-                style={[
-                  styles.statusDot,
-                  {
-                    borderColor: theme.background,
-                    backgroundColor:
-                      provider.availabilityStatus === 'online'
-                        ? '#4CAF50'
-                        : '#FF3B30',
-                  },
-                ]}
-              />
-            </View>
-            <ThemedText style={styles.providerName} type='title'>
+  return (
+    <ScreenShell>
+      <StackHeader
+        title={provider.title || provider.name || 'Worker'}
+        right={
+          <Pressable
+            hitSlop={8}
+            accessibilityRole='button'
+            accessibilityLabel={
+              isSaved(provider.id) ? 'Remove from saved' : 'Save worker'
+            }
+            onPress={() =>
+              gateAction('Sign in to save workers', () => toggleSave(provider.id))
+            }>
+            <Feather
+              name='heart'
+              size={20}
+              color={isSaved(provider.id) ? '#FF6B6B' : theme.text}
+            />
+          </Pressable>
+        }
+      />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}>
+        <View style={styles.content}>
+          <ProfileAvatar
+            name={provider.name}
+            imageUrl={avatarImage}
+            rating={provider.rating}
+            reviewCount={reviewCount}
+            isOnline={isOnline}
+          />
+
+          <View style={styles.titleBlock}>
+            <ThemedText style={styles.providerName} type='title' selectable>
               {provider.name}
             </ThemedText>
-            <View style={styles.roleRow}>
-              <ThemedText
-                style={[styles.providerRole, { color: theme.subtext }]}>
-                {provider.primaryProfession}
-              </ThemedText>
-              {provider.isVerified && (
-                <View
-                  style={[
-                    styles.verifiedBadge,
-                    { backgroundColor: theme.accent },
-                  ]}>
-                  <Feather
-                    name='check-circle'
-                    size={12}
-                    color={theme.onAccent}
-                  />
-                  <ThemedText
-                    style={[styles.verifiedText, { color: theme.onAccent }]}>
-                    Verified
-                  </ThemedText>
-                </View>
-              )}
-            </View>
-            <View style={[styles.ratingBadge, { backgroundColor: theme.card }]}>
-              <Feather name='star' size={14} color='#FFB800' fill='#FFB800' />
-              <ThemedText style={styles.ratingText}>
-                {provider.rating.toFixed(1)}
-              </ThemedText>
-            </View>
+            <ThemedText
+              style={[styles.providerRole, { color: theme.subtext }]}
+              selectable>
+              {provider.primaryProfession}
+            </ThemedText>
           </View>
 
-          {/* Stats Row */}
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-              <ThemedText style={styles.statValue}>
-                {provider.experienceYears}+
-              </ThemedText>
-              <ThemedText style={[styles.statLabel, { color: theme.subtext }]}>
-                Years Exp.
-              </ThemedText>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-              <ThemedText style={styles.statValue}>
-                {provider.location?.homeCity || 'Near You'}
-              </ThemedText>
-              <ThemedText style={[styles.statLabel, { color: theme.subtext }]}>
-                Home City
-              </ThemedText>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-              <ThemedText style={styles.statValue}>
-                {provider.languages?.[0] || 'English'}
-              </ThemedText>
-              <ThemedText style={[styles.statLabel, { color: theme.subtext }]}>
-                Lang.
-              </ThemedText>
-            </View>
+            <StatColumn
+              label='Experience'
+              value={`${provider.experienceYears || '0-1'} yrs`}
+            />
+            <StatColumn
+              label='Location'
+              value={provider.location?.homeCity || 'Nearby'}
+            />
+            <StatColumn
+              label='Language'
+              value={formatLanguagesLabel(provider.languages)}
+            />
           </View>
 
-          {/* Pricing & Availability */}
           <View
             style={[
-              styles.infoCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
+              styles.priceCard,
+              {
+                backgroundColor: theme.card,
+                boxShadow: cardShadow(colorScheme),
+              },
             ]}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoItem}>
-                <ThemedText style={styles.infoLabel}>Base Rate</ThemedText>
-                <ThemedText style={[styles.infoValue, { color: theme.accent }]}>
-                  Rs. {provider.pricing?.baseRate || 'Contact'}
-                  {provider.pricing?.type === 'Hourly' ? '/hr' : ''}
-                </ThemedText>
-              </View>
-              <View style={styles.infoItem}>
-                <ThemedText style={styles.infoLabel}>Availability</ThemedText>
-                <ThemedText
-                  style={[
-                    styles.infoValue,
-                    {
-                      color:
-                        provider.availabilityStatus === 'online'
-                          ? '#4CAF50'
-                          : theme.subtext,
-                    },
-                  ]}>
-                  {provider.availabilityStatus === 'online'
-                    ? 'Online Now'
-                    : 'Away'}
-                </ThemedText>
-              </View>
+            <View style={styles.priceCol}>
+              <ThemedText style={[styles.priceLabel, { color: theme.subtext }]}>
+                Base rate
+              </ThemedText>
+              <ThemedText style={styles.priceValue} selectable>
+                Rs. {provider.pricing?.baseRate || 'Contact'}
+                {provider.pricing?.type === 'Hourly' ? '/hr' : ''}
+              </ThemedText>
+            </View>
+            <View style={[styles.priceDivider, { backgroundColor: theme.border }]} />
+            <View style={styles.priceCol}>
+              <ThemedText style={[styles.priceLabel, { color: theme.subtext }]}>
+                Availability
+              </ThemedText>
+              <ThemedText
+                style={[
+                  styles.priceValue,
+                  { color: isOnline ? theme.online : theme.offline },
+                ]}
+                selectable>
+                {isOnline ? 'Available now' : 'Currently away'}
+              </ThemedText>
             </View>
           </View>
 
-          {/* About */}
+          {provider.workSamples && provider.workSamples.length > 0 ? (
+            <WorkSamplesCarousel samples={provider.workSamples} />
+          ) : null}
+
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle} type='subtitle'>
+            <ThemedText style={styles.sectionTitle} type='headline' selectable>
               About
             </ThemedText>
-            <ThemedText style={[styles.sectionBody, { color: theme.text }]}>
+            <ThemedText style={styles.sectionBody} selectable>
               {provider.about || provider.bio || 'No description provided.'}
             </ThemedText>
           </View>
 
-          {/* Professions/Skills */}
           {provider.secondaryProfessions &&
-            provider.secondaryProfessions.length > 0 && (
-              <View style={styles.section}>
-                <ThemedText style={styles.sectionTitle} type='subtitle'>
-                  Expertise
-                </ThemedText>
-                <View style={[styles.chipGrid, { marginTop: 8 }]}>
-                  {provider.secondaryProfessions.map((skill, index) => (
-                    <View
-                      key={`skill-${index}`}
-                      style={[
-                        styles.areaChip,
-                        {
-                          backgroundColor: theme.card,
-                          borderColor: theme.border,
-                          borderWidth: 1,
-                        },
-                      ]}>
-                      <ThemedText
-                        style={[styles.areaChipText, { color: theme.text }]}>
-                        {skill}
-                      </ThemedText>
-                    </View>
-                  ))}
-                </View>
+          provider.secondaryProfessions.length > 0 ? (
+            <View style={styles.section}>
+              <ThemedText style={styles.sectionTitle} type='headline' selectable>
+                Expertise
+              </ThemedText>
+              <View style={styles.chipGrid}>
+                {provider.secondaryProfessions.map((skill, index) => (
+                  <View
+                    key={`skill-${index}`}
+                    style={[styles.chip, { backgroundColor: theme.muted }]}>
+                    <ThemedText style={styles.chipText} selectable>
+                      {skill}
+                    </ThemedText>
+                  </View>
+                ))}
               </View>
-            )}
+            </View>
+          ) : null}
 
-          {/* Service Area */}
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle} type='subtitle'>
-              Service Coverage
+            <ThemedText style={styles.sectionTitle} type='headline' selectable>
+              Location
             </ThemedText>
-            <View style={styles.chipGrid}>
-              <View
-                style={[
-                  styles.areaChip,
-                  { backgroundColor: theme.accent + '15' },
-                ]}>
-                <Feather name='map-pin' size={12} color={theme.accent} />
-                <ThemedText
-                  style={[styles.areaChipText, { color: theme.accent }]}>
-                  {provider.location?.homeCity}
-                  {provider.location?.country
-                    ? `, ${provider.location.country}`
-                    : ''}{' '}
-                  ({provider.serviceRadius || 25}km)
-                </ThemedText>
-              </View>
+            <View style={[styles.chip, { backgroundColor: theme.muted }]}>
+              <Feather name='map-pin' size={12} color={theme.text} />
+              <ThemedText style={styles.chipText} selectable>
+                {provider.location?.homeCity}
+                {provider.location?.country
+                  ? `, ${provider.location.country}`
+                  : ''}
+              </ThemedText>
             </View>
           </View>
-          {/* Work Samples */}
-          {provider.workSamples && provider.workSamples.length > 0 && (
-            <View style={styles.section}>
-              <ThemedText style={styles.sectionTitle} type='subtitle'>
-                Recent Work
-              </ThemedText>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.portfolioScroll}>
-                {provider.workSamples.map((url, index) => (
-                  <Image
-                    key={`work-sample-${index}-${url}`}
-                    source={url}
-                    style={styles.portfolioThumb}
-                    contentFit='cover'
-                    transition={200}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          )}
 
-          {/* Dynamic Services List */}
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle} type='subtitle'>
-              Services Offered
+            <ThemedText style={styles.sectionTitle} type='headline' selectable>
+              Services offered
             </ThemedText>
             {provider.services && provider.services.length > 0 ? (
               provider.services.map((service) => (
@@ -332,267 +364,317 @@ export default function PublicProfileScreen() {
                   key={service.id}
                   style={[
                     styles.serviceItem,
-                    { backgroundColor: theme.card, borderColor: theme.border },
+                    {
+                      backgroundColor: theme.card,
+                      boxShadow: cardShadow(colorScheme),
+                    },
                   ]}>
-                  <View style={styles.serviceItemMain}>
-                    <View style={{ flex: 1 }}>
-                      <ThemedText
-                        style={styles.serviceItemTitle}
-                        type='defaultSemiBold'>
-                        {service.title}
-                      </ThemedText>
-                      <ThemedText
-                        style={[
-                          styles.serviceItemPrice,
-                          { color: theme.accent },
-                        ]}>
-                        Rs. {service.minPrice} - Rs. {service.maxPrice}
-                      </ThemedText>
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.bookBtn,
-                        { backgroundColor: theme.accent },
-                      ]}>
-                      <ThemedText
-                        style={[styles.bookBtnText, { color: theme.onAccent }]}>
-                        Book
-                      </ThemedText>
-                    </TouchableOpacity>
-                  </View>
+                  <ThemedText style={styles.serviceItemTitle} selectable>
+                    {service.title}
+                  </ThemedText>
+                  <ThemedText style={styles.serviceItemPrice} selectable>
+                    Rs. {service.minPrice} – Rs. {service.maxPrice}
+                  </ThemedText>
                   <ThemedText
                     style={[styles.serviceItemDesc, { color: theme.subtext }]}
-                    numberOfLines={2}>
+                    numberOfLines={3}
+                    selectable>
                     {service.description}
                   </ThemedText>
                 </View>
               ))
             ) : (
-              <ThemedText style={{ color: theme.subtext, fontStyle: 'italic' }}>
+              <ThemedText style={{ color: theme.subtext }} selectable>
                 General services available based on profession.
               </ThemedText>
             )}
           </View>
 
-          {/* Portfolio Grid if available */}
-          {provider.portfolioUrls && provider.portfolioUrls.length > 0 && (
-            <View style={styles.section}>
-              <ThemedText style={styles.sectionTitle} type='subtitle'>
-                Recent Work
+          <View style={styles.section}>
+            <View style={styles.reviewsHeader}>
+              <ThemedText style={styles.sectionTitle} type='headline' selectable>
+                Reviews
               </ThemedText>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.portfolioScroll}>
-                {provider.portfolioUrls.map((url, index) => (
-                  <Image
-                    key={`portfolio-${index}-${url}`}
-                    source={url}
-                    style={styles.portfolioThumb}
-                  />
-                ))}
-              </ScrollView>
+              <View style={styles.reviewActions}>
+                {reviewCount > 0 ? (
+                  <Pressable
+                    accessibilityRole='button'
+                    onPress={() =>
+                      router.push({
+                        pathname: '/(app)/provider-reviews',
+                        params: {
+                          id: provider.id,
+                          name: provider.name,
+                          rating: String(provider.rating),
+                        },
+                      })
+                    }>
+                    <ThemedText
+                      style={{ color: theme.accent, fontWeight: '600' }}>
+                      See all
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+                {!user ? (
+                  <Pressable
+                    onPress={() =>
+                      gateAction('Sign in to leave a review', () => {})
+                    }>
+                    <ThemedText
+                      style={{ color: theme.accent, fontWeight: '600' }}>
+                      Sign in
+                    </ThemedText>
+                  </Pressable>
+                ) : !hasUserReview ? (
+                  <Pressable onPress={() => reviewSheetRef.current?.open()}>
+                    <ThemedText
+                      style={{ color: theme.accent, fontWeight: '600' }}>
+                      Write review
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
-          )}
+            <ReviewList reviews={previewReviews} />
+          </View>
 
           <View style={{ height: 120 }} />
-        </ScrollView>
-
-        {/* Sticky Action Bar */}
-        <View
-          style={[
-            styles.bottomBar,
-            { backgroundColor: theme.background, borderTopColor: theme.border },
-          ]}>
-          <TouchableOpacity
-            onPress={handleChat}
-            style={[styles.chatBtn, { borderColor: theme.border }]}>
-            <Feather name='message-circle' size={20} color={theme.text} />
-            <ThemedText style={styles.chatBtnText} type='defaultSemiBold'>
-              Chat
-            </ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleCall}
-            style={[styles.contactBtn, { backgroundColor: theme.accent }]}>
-            <Feather name='phone-call' size={20} color={theme.onAccent} />
-            <ThemedText
-              style={[styles.contactBtnText, { color: theme.onAccent }]}
-              type='defaultSemiBold'>
-              Contact
-            </ThemedText>
-          </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    </ThemedView>
+      </ScrollView>
+
+      <WriteReviewSheet
+        ref={reviewSheetRef}
+        providerId={provider.id}
+        providerName={provider.name}
+        onSubmitted={refreshProfile}
+      />
+
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            backgroundColor: theme.background,
+            borderTopColor: theme.border,
+            paddingBottom: Math.max(bottom, 16),
+          },
+        ]}>
+        <Pressable
+          onPress={handleWhatsApp}
+          style={({ pressed }) => [
+            styles.secondaryBtn,
+            {
+              borderColor: theme.border,
+              backgroundColor: theme.card,
+              opacity: pressed ? 0.9 : 1,
+            },
+          ]}>
+          <Feather name='message-circle' size={20} color={theme.text} />
+          <ThemedText style={styles.secondaryBtnText} type='defaultSemiBold'>
+            WhatsApp
+          </ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={handleCall}
+          style={({ pressed }) => [
+            styles.primaryBtn,
+            {
+              backgroundColor: theme.text,
+              opacity: pressed ? 0.92 : 1,
+            },
+          ]}>
+          <Feather name='phone-call' size={20} color={theme.onAccent} />
+          <ThemedText
+            style={[styles.primaryBtnText, { color: theme.onAccent }]}
+            type='defaultSemiBold'>
+            Call now
+          </ThemedText>
+        </Pressable>
+      </View>
+    </ScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 56,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
+  center: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: Layout.screenPadding,
   },
-  headerTitle: { fontSize: 18 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
-  profileSection: { alignItems: 'center', marginBottom: 24 },
-  avatarContainer: { position: 'relative', marginBottom: 12 },
-  avatar: { width: 90, height: 90, borderRadius: 45 },
-  statusDot: {
-    position: 'absolute',
-    bottom: 5,
-    right: 5,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
+  retryBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: Layout.chipRadius,
+    borderWidth: 1,
+    borderCurve: 'continuous',
   },
-  providerName: { fontSize: 22, marginBottom: 4 },
-  roleRow: {
-    flexDirection: 'row',
+  scrollContent: {
+    paddingBottom: 120,
+  },
+  content: {
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: 8,
+    gap: Layout.sectionGap,
+  },
+  titleBlock: {
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  providerRole: { fontSize: 14 },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
     gap: 4,
+    marginTop: -4,
   },
-  verifiedText: { fontSize: 10, fontWeight: '800' },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    elevation: 1,
+  providerName: {
+    fontSize: 26,
+    letterSpacing: -0.6,
+    textAlign: 'center',
   },
-  ratingText: { fontSize: 15, fontWeight: 'bold' },
-  reviewCount: { fontWeight: 'normal', fontSize: 13 },
+  providerRole: {
+    fontSize: 15,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 30,
+    gap: 10,
   },
   statCard: {
-    width: '31%',
+    flex: 1,
     borderRadius: 16,
-    padding: 12,
+    borderCurve: 'continuous',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     alignItems: 'center',
+    gap: 4,
   },
-  statValue: { fontSize: 16, fontWeight: 'bold' },
-  statLabel: { fontSize: 12, marginTop: 2 },
-  infoCard: {
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 30,
+  statValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
   },
-  infoRow: {
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  priceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Layout.cardRadius,
+    borderCurve: 'continuous',
+    padding: 18,
+  },
+  priceCol: {
+    flex: 1,
+    gap: 4,
+  },
+  priceDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    marginHorizontal: 16,
+  },
+  priceLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  priceValue: {
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  section: {
+    gap: 12,
+  },
+  reviewsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  infoItem: {
-    flex: 1,
+  reviewActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
   },
-  infoLabel: {
-    fontSize: 12,
-    opacity: 0.6,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  sectionTitle: {
+    letterSpacing: -0.3,
   },
-  infoValue: {
-    fontSize: 18,
-    fontWeight: '800',
+  sectionBody: {
+    fontSize: 15,
+    lineHeight: 23,
   },
   chipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  areaChip: {
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingVertical: 8,
+    borderRadius: Layout.chipRadius,
     gap: 6,
+    alignSelf: 'flex-start',
   },
-  areaChipText: {
+  chipText: {
     fontSize: 13,
     fontWeight: '600',
   },
-  section: { marginBottom: 32 },
-  sectionTitle: { fontSize: 18, marginBottom: 16 },
-  sectionBody: { fontSize: 15, lineHeight: 22 },
   serviceItem: {
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: Layout.cardRadius,
+    borderCurve: 'continuous',
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 10,
+    gap: 4,
   },
-  serviceItemMain: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+  serviceItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  serviceItemTitle: { fontSize: 16 },
-  serviceItemPrice: { fontSize: 14, fontWeight: '600', marginTop: 2 },
-  serviceItemDesc: { fontSize: 13, lineHeight: 18 },
-  bookBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8 },
-  bookBtnText: { fontSize: 13, fontWeight: 'bold' },
-  portfolioScroll: { gap: 12 },
-  portfolioThumb: { width: 120, height: 120, borderRadius: 12 },
+  serviceItemPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  serviceItemDesc: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: 12,
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     borderTopWidth: 1,
   },
-  chatBtn: {
+  secondaryBtn: {
     flex: 1,
-    height: 50,
-    borderRadius: 12,
+    minHeight: Layout.inputHeight,
+    borderRadius: Layout.chipRadius,
+    borderCurve: 'continuous',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
   },
-  chatBtnText: { fontSize: 16 },
-  contactBtn: {
-    flex: 2,
-    height: 50,
-    borderRadius: 12,
+  secondaryBtnText: {
+    fontSize: 15,
+  },
+  primaryBtn: {
+    flex: 1.4,
+    minHeight: Layout.inputHeight,
+    borderRadius: Layout.chipRadius,
+    borderCurve: 'continuous',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
   },
-  contactBtnText: { fontSize: 16 },
+  primaryBtnText: {
+    fontSize: 15,
+  },
 });

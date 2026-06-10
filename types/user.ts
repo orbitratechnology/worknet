@@ -5,6 +5,7 @@ export type UserProfile = {
   bio?: string;
   createdAt?: any;
   phoneNumber?: string;
+  phoneVerified?: boolean;
   photoUrl?: string;
   isServiceProvider?: boolean;
 };

@@ -1,10 +1,26 @@
+export type ExperienceYearsRange =
+  | '0-1'
+  | '1-3'
+  | '3-5'
+  | '5-10'
+  | '10+';
+
+export interface SocialLinks {
+  facebook?: string;
+  instagram?: string;
+  tiktok?: string;
+  website?: string;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   phoneNumber?: string;
+  phoneVerified?: boolean;
   photoUrl?: string;
-  createdAt: any; // Firestore Timestamp
+  bio?: string;
+  createdAt: any;
   isServiceProvider: boolean;
 }
 
@@ -16,26 +32,28 @@ export interface Service {
   experience: number;
   minPrice: number;
   maxPrice: number;
-  portfolioUrls: string[];
-  serviceRadius: number;
+  workSamples: string[];
   isAvailable: boolean;
   createdAt: any;
   updatedAt: any;
 }
 
 export interface ServiceProvider {
-  id: string; // Same as User ID
+  id: string;
   name: string;
-  title?: string; // e.g. "Professional Plumber"
+  title?: string;
   bio: string;
   about?: string;
-  nic?: string;
+  nicNumber?: string;
+  nicVerified?: boolean;
+  phoneVerified?: boolean;
+  primaryProfessionId: string;
   primaryProfession: string;
   secondaryProfessions: string[];
   tags: string[];
   rating: number;
   reviewCount: number;
-  experienceYears: number;
+  experienceYears: ExperienceYearsRange;
   languages: string[];
   location: {
     latitude: number;
@@ -45,21 +63,14 @@ export interface ServiceProvider {
     country: string;
     address?: string;
   };
-  coverageArea: 'City' | 'Country' | 'Radius';
-  serviceCities?: string[];
-  serviceDistricts?: string[];
-  travelWillingness: boolean;
-  travelLimitKm?: number;
-  serviceRadius: number; // in km
   phoneNumber: string;
   whatsappNumber?: string;
   contactMethod: 'Call' | 'WhatsApp' | 'In-app';
   imageUrl?: string;
-  portfolioUrls?: string[];
   workSamples?: string[];
   availabilityStatus?: 'online' | 'offline';
-  isVerified?: boolean;
   emergencyAvailability: boolean;
+  socialLinks?: SocialLinks;
   pricing: {
     type: 'Hourly' | 'Daily' | 'Per job' | 'Inspection fee' | 'Free inspection';
     baseRate: number;
@@ -67,11 +78,8 @@ export interface ServiceProvider {
     maxRate?: number;
     negotiable: boolean;
   };
-  pastProjects?: string;
-  clientReferences?: string;
   businessName?: string;
-  brn?: string;
-  services?: Service[]; // Optional array of specific services
+  services?: Service[];
   createdAt: any;
   updatedAt: any;
 }
@@ -85,4 +93,9 @@ export interface Review {
   rating: number;
   comment?: string;
   createdAt: any;
+}
+
+export interface SavedProvidersDoc {
+  providerIds: string[];
+  updatedAt: any;
 }
