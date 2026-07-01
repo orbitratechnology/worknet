@@ -1,9 +1,38 @@
-const OLD_NIC = /^[0-9]{9}[vVxX]$/;
-const NEW_NIC = /^[0-9]{12}$/;
+/** Sri Lanka NIC: 9 digits + V/v, or 12 digits. */
+export const SRI_LANKA_NIC_REGEX = /^([0-9]{9}[vV]|[0-9]{12})$/;
+
+export function normalizeSriLankaNic(nic: string): string {
+  const trimmed = nic.trim();
+  if (/^[0-9]{9}[vV]$/.test(trimmed)) {
+    return `${trimmed.slice(0, 9)}${trimmed[9].toUpperCase()}`;
+  }
+  return trimmed;
+}
 
 export function isValidSriLankaNic(nic: string): boolean {
+  return SRI_LANKA_NIC_REGEX.test(nic.trim());
+}
+
+export function formatNicInput(value: string): string {
+  const upper = value.toUpperCase();
+  const cleaned = upper.replace(/[^0-9V]/g, '');
+  if (cleaned.length <= 9) {
+    return cleaned;
+  }
+  if (cleaned.length === 10 && cleaned.endsWith('V')) {
+    return cleaned;
+  }
+  if (/^\d+$/.test(cleaned)) {
+    return cleaned.slice(0, 12);
+  }
+  return cleaned.slice(0, 10);
+}
+
+export function nicValidationMessage(nic: string): string | null {
   const trimmed = nic.trim();
-  return OLD_NIC.test(trimmed) || NEW_NIC.test(trimmed);
+  if (!trimmed) return null;
+  if (isValidSriLankaNic(trimmed)) return null;
+  return 'Enter a valid NIC: 9 digits + V (e.g. 123456789V) or 12 digits.';
 }
 
 export function normalizePhoneE164(phone: string, countryCode = '+94'): string {

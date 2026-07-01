@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { reauthenticateWithApple } from '@/lib/apple-auth';
 import { db, storage } from '@/lib/firebase';
 import { logger } from '@/lib/logger';
+import { normalizeSriLankaNic } from '@/lib/validation';
 import {
   deleteUser,
   EmailAuthProvider,
@@ -13,6 +14,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   writeBatch,
 } from '@react-native-firebase/firestore';
@@ -42,6 +44,17 @@ async function deleteUserSessions(uid: string) {
 }
 
 async function cleanupUserData(uid: string) {
+  let nicRegistryDoc: string | null = null;
+  try {
+    const userSnap = await getDoc(doc(db, 'users', uid));
+    const nic = userSnap.data()?.nicNumber as string | undefined;
+    if (nic) {
+      nicRegistryDoc = normalizeSriLankaNic(nic);
+    }
+  } catch {
+    /* ignore */
+  }
+
   await Promise.all([
     deleteDoc(doc(db, 'users', uid)).catch((e) =>
       logger.warn('User doc delete failed', e),
@@ -49,6 +62,9 @@ async function cleanupUserData(uid: string) {
     deleteDoc(doc(db, 'service_providers', uid)).catch(() => {}),
     deleteDoc(doc(db, 'provider_verification', uid)).catch(() => {}),
     deleteDoc(doc(db, 'saved_providers', uid)).catch(() => {}),
+    nicRegistryDoc
+      ? deleteDoc(doc(db, 'nic_registry', nicRegistryDoc)).catch(() => {})
+      : Promise.resolve(),
     deleteUserSessions(uid).catch((e) =>
       logger.warn('Session cleanup failed', e),
     ),

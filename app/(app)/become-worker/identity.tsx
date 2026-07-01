@@ -7,8 +7,12 @@ import { ThemedText } from '@/components/themed-text';
 import { FormSection, formFieldStyles } from '@/components/ui/form-section';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
 import { useAuth } from '@/context/auth';
-import { useWorkerOnboarding } from '@/hooks/use-worker-onboarding';
+import {
+  useSyncDraftField,
+  useWorkerOnboarding,
+} from '@/hooks/use-worker-onboarding';
 import { useTheme } from '@/hooks/use-theme';
+import { nextStepAfterIdentity } from '@/lib/user-identity';
 import { profilePhotoPath, uploadLocalFile } from '@/lib/storage';
 import { getUserFacingMessage } from '@/lib/user-errors';
 import { isValidName } from '@/lib/validation';
@@ -16,25 +20,42 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, StyleSheet, TextInput, View } from 'react-native';
 
 export default function IdentityStep() {
   const router = useRouter();
   const theme = useTheme();
   const { user, userProfile } = useAuth();
-  const { draft, updateDraft } = useWorkerOnboarding();
-  const [name, setName] = useState(draft.name);
+  const { draft, updateDraft, loaded } = useWorkerOnboarding();
+  const [name, setName] = useSyncDraftField('name');
   const [imageUri, setImageUri] = useState<string | null>(draft.imageUri);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const didPrefillName = useRef(false);
 
   useEffect(() => {
-    if (!name && userProfile?.name) setName(userProfile.name);
-    if (!imageUri && (userProfile?.photoUrl || user?.photoURL)) {
-      setImageUri(userProfile?.photoUrl || user?.photoURL || null);
+    if (!loaded) return;
+    if (draft.imageUri) setImageUri(draft.imageUri);
+  }, [loaded, draft.imageUri]);
+
+  useEffect(() => {
+    if (!loaded || didPrefillName.current) return;
+    didPrefillName.current = true;
+    if (draft.name.trim()) return;
+
+    const fallback = userProfile?.name || user?.displayName;
+    if (fallback) setName(fallback);
+  }, [loaded, draft.name, userProfile?.name, user?.displayName, setName]);
+
+  useEffect(() => {
+    if (!loaded || imageUri) return;
+    const fallback = userProfile?.photoUrl || user?.photoURL;
+    if (fallback) {
+      setImageUri(fallback);
+      updateDraft({ imageUri: fallback });
     }
-  }, [userProfile, user, name, imageUri]);
+  }, [loaded, imageUri, userProfile?.photoUrl, user?.photoURL, updateDraft]);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -51,6 +72,7 @@ export default function IdentityStep() {
           profilePhotoPath(user.uid),
         );
         setImageUri(url);
+        await updateDraft({ imageUri: url });
       } catch (e) {
         Alert.alert('Upload failed', getUserFacingMessage(e, 'upload'));
       } finally {
@@ -70,7 +92,7 @@ export default function IdentityStep() {
     }
 
     await updateDraft({ name: name.trim(), imageUri });
-    router.push('/(app)/become-worker/verification');
+    router.push(nextStepAfterIdentity(userProfile));
   };
 
   return (

@@ -29,7 +29,7 @@ export async function sendPhoneOtp(phone: string): Promise<PhoneConfirmation> {
 
   return {
     confirm: async (code: string) => {
-      const { PhoneAuthProvider, linkWithCredential } = await import(
+      const { PhoneAuthProvider, linkWithCredential, reload } = await import(
         '@react-native-firebase/auth'
       );
       const currentUser = auth.currentUser;
@@ -37,7 +37,24 @@ export async function sendPhoneOtp(phone: string): Promise<PhoneConfirmation> {
         throw new Error('You must be signed in before verifying your phone.');
       }
       const credential = PhoneAuthProvider.credential(verificationId, code);
-      await linkWithCredential(currentUser, credential);
+      try {
+        await linkWithCredential(currentUser, credential);
+      } catch (error: unknown) {
+        const code =
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          typeof error.code === 'string'
+            ? error.code
+            : '';
+        if (
+          code !== 'auth/provider-already-linked' &&
+          code !== 'auth/credential-already-in-use'
+        ) {
+          throw error;
+        }
+      }
+      await reload(currentUser);
     },
   };
 }

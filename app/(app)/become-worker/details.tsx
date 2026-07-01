@@ -9,6 +9,7 @@ import { HapticPressable } from '@/components/ui/haptic-pressable';
 import { WORKER_LANGUAGES } from '@/constants/worker-languages';
 import { ExperienceYearsRange } from '@/types/database';
 import { useAuth } from '@/context/auth';
+import { useRequireWorkerIdentity } from '@/hooks/use-require-worker-identity';
 import { useWorkerOnboarding } from '@/hooks/use-worker-onboarding';
 import { useTheme } from '@/hooks/use-theme';
 import { uploadLocalFile, workSamplePath } from '@/lib/storage';
@@ -16,7 +17,7 @@ import { getUserFacingMessage } from '@/lib/user-errors';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -37,7 +38,8 @@ export default function DetailsStep() {
   const router = useRouter();
   const theme = useTheme();
   const { user } = useAuth();
-  const { draft, updateDraft } = useWorkerOnboarding();
+  useRequireWorkerIdentity();
+  const { draft, updateDraft, loaded } = useWorkerOnboarding();
   const [uploadingSample, setUploadingSample] = useState(false);
   const [whatsapp, setWhatsapp] = useState(draft.whatsappNumber);
   const [bio, setBio] = useState(draft.bio);
@@ -51,13 +53,42 @@ export default function DetailsStep() {
     draft.languages.length ? draft.languages : ['Sinhala'],
   );
 
+  useEffect(() => {
+    if (!loaded) return;
+    setWhatsapp(draft.whatsappNumber);
+    setBio(draft.bio);
+    setBaseRate(draft.baseRate);
+    setExperience(draft.experienceYears);
+    setSamples(draft.workSampleUris);
+    setEmergency(draft.emergencyAvailability);
+    setInstagram(draft.socialLinks.instagram ?? '');
+    setFacebook(draft.socialLinks.facebook ?? '');
+    setLanguages(draft.languages.length ? draft.languages : ['Sinhala']);
+  }, [
+    loaded,
+    draft.whatsappNumber,
+    draft.bio,
+    draft.baseRate,
+    draft.experienceYears,
+    draft.workSampleUris,
+    draft.emergencyAvailability,
+    draft.socialLinks,
+    draft.languages,
+  ]);
+
+  const persistDetails = (patch: Parameters<typeof updateDraft>[0]) => {
+    updateDraft(patch);
+  };
+
   const toggleLanguage = (language: string) => {
     setLanguages((current) => {
-      if (current.includes(language)) {
-        if (current.length === 1) return current;
-        return current.filter((item) => item !== language);
-      }
-      return [...current, language];
+      const next = current.includes(language)
+        ? current.length === 1
+          ? current
+          : current.filter((item) => item !== language)
+        : [...current, language];
+      persistDetails({ languages: next });
+      return next;
     });
   };
 
@@ -80,7 +111,9 @@ export default function DetailsStep() {
           result.assets[0].uri,
           workSamplePath(user.uid, samples.length),
         );
-        setSamples((s) => [...s, url]);
+        const next = [...samples, url];
+        setSamples(next);
+        persistDetails({ workSampleUris: next });
       } catch (e) {
         Alert.alert('Upload failed', getUserFacingMessage(e, 'upload'));
       } finally {
@@ -125,7 +158,10 @@ export default function DetailsStep() {
           <ThemedText style={formFieldStyles.label}>WhatsApp</ThemedText>
           <TextInput
             value={whatsapp}
-            onChangeText={setWhatsapp}
+            onChangeText={(t) => {
+              setWhatsapp(t);
+              persistDetails({ whatsappNumber: t });
+            }}
             placeholder='Same as phone if empty'
             placeholderTextColor={theme.subtext}
             keyboardType='phone-pad'
@@ -137,7 +173,10 @@ export default function DetailsStep() {
       <FormSection title='About you' icon='file-text' variant='plain'>
         <TextInput
           value={bio}
-          onChangeText={setBio}
+          onChangeText={(t) => {
+            setBio(t);
+            persistDetails({ bio: t });
+          }}
           placeholder='Brief description of your experience'
           placeholderTextColor={theme.subtext}
           multiline
@@ -182,7 +221,10 @@ export default function DetailsStep() {
           {EXPERIENCE_OPTIONS.map((opt) => (
             <HapticPressable
               key={opt}
-              onPress={() => setExperience(opt)}
+              onPress={() => {
+                setExperience(opt);
+                persistDetails({ experienceYears: opt });
+              }}
               style={[
                 formFieldStyles.chip,
                 {
@@ -208,7 +250,10 @@ export default function DetailsStep() {
       <FormSection title='Pricing' icon='dollar-sign' variant='plain'>
         <TextInput
           value={baseRate}
-          onChangeText={setBaseRate}
+          onChangeText={(t) => {
+            setBaseRate(t);
+            persistDetails({ baseRate: t });
+          }}
           placeholder='Hourly rate in LKR, e.g. 1500'
           placeholderTextColor={theme.subtext}
           keyboardType='number-pad'
@@ -237,14 +282,20 @@ export default function DetailsStep() {
         <View style={formFieldStyles.group}>
           <TextInput
             value={instagram}
-            onChangeText={setInstagram}
+            onChangeText={(t) => {
+              setInstagram(t);
+              persistDetails({ socialLinks: { instagram: t, facebook } });
+            }}
             placeholder='Instagram handle'
             placeholderTextColor={theme.subtext}
             style={[formFieldStyles.input, inputStyle]}
           />
           <TextInput
             value={facebook}
-            onChangeText={setFacebook}
+            onChangeText={(t) => {
+              setFacebook(t);
+              persistDetails({ socialLinks: { instagram, facebook: t } });
+            }}
             placeholder='Facebook page URL'
             placeholderTextColor={theme.subtext}
             style={[formFieldStyles.input, inputStyle]}
@@ -263,7 +314,10 @@ export default function DetailsStep() {
         </View>
         <Switch
           value={emergency}
-          onValueChange={setEmergency}
+          onValueChange={(val) => {
+            setEmergency(val);
+            persistDetails({ emergencyAvailability: val });
+          }}
           trackColor={{ false: theme.border, true: theme.online }}
           thumbColor={theme.onAccent}
         />

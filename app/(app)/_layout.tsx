@@ -8,7 +8,6 @@ const PROTECTED_APP_ROUTES = new Set([
   'edit-profile',
   'saved-workers',
   'provider-profile',
-  'enroll-provider',
   'become-worker',
 ]);
 
@@ -39,45 +38,38 @@ export default function AppLayout() {
     <>
       <AuthStackRedirect />
       <Stack>
-      <Stack.Screen
-        name='public-profile'
-        options={{ title: 'Public Profile', headerShown: false }}
-      />
-      <Stack.Screen
-        name='provider-reviews'
-        options={{ title: 'Reviews', headerShown: false }}
-      />
-      <Stack.Screen
-        name='explore'
-        options={{ title: 'Explore Problems', headerShown: false }}
-      />
-      <Stack.Protected guard={!!user}>
         <Stack.Screen
-          name='become-worker'
-          options={{ headerShown: false }}
+          name='public-profile'
+          options={{ title: 'Public Profile', headerShown: false }}
         />
         <Stack.Screen
-          name='edit-profile'
-          options={{ title: 'Edit Profile', headerShown: false }}
+          name='provider-reviews'
+          options={{ title: 'Reviews', headerShown: false }}
         />
         <Stack.Screen
-          name='enroll-provider'
-          options={{ title: 'Become a Worker', headerShown: false }}
+          name='explore'
+          options={{ title: 'Explore Problems', headerShown: false }}
         />
-        <Stack.Screen
-          name='provider-profile'
-          options={{ title: 'Worker Profile', headerShown: false }}
-        />
-        <Stack.Screen
-          name='settings'
-          options={{ title: 'Settings', headerShown: false }}
-        />
-        <Stack.Screen
-          name='saved-workers'
-          options={{ title: 'Saved Workers', headerShown: false }}
-        />
-      </Stack.Protected>
-    </Stack>
+        <Stack.Protected guard={!!user}>
+          <Stack.Screen name='become-worker' options={{ headerShown: false }} />
+          <Stack.Screen
+            name='edit-profile'
+            options={{ title: 'Edit Profile', headerShown: false }}
+          />
+          <Stack.Screen
+            name='provider-profile'
+            options={{ title: 'Worker Profile', headerShown: false }}
+          />
+          <Stack.Screen
+            name='settings'
+            options={{ title: 'Settings', headerShown: false }}
+          />
+          <Stack.Screen
+            name='saved-workers'
+            options={{ title: 'Saved Workers', headerShown: false }}
+          />
+        </Stack.Protected>
+      </Stack>
     </>
   );
 }

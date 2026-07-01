@@ -1,3 +1,5 @@
+import type { WorkerOnboardingDraft } from '@/types/worker-onboarding';
+
 export type UserProfile = {
   id?: string;
   name?: string;
@@ -6,6 +8,9 @@ export type UserProfile = {
   createdAt?: any;
   phoneNumber?: string;
   phoneVerified?: boolean;
+  nicNumber?: string;
+  nicVerified?: boolean;
   photoUrl?: string;
   isServiceProvider?: boolean;
+  workerOnboarding?: Partial<WorkerOnboardingDraft>;
 };

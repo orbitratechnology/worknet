@@ -19,7 +19,6 @@ export function SocialAuthSection({
   loading,
   onGooglePress,
   onApplePress,
-  variant = 'stack',
 }: SocialAuthSectionProps) {
   const theme = useTheme();
   const [appleAvailable, setAppleAvailable] = useState(false);
@@ -29,8 +28,8 @@ export function SocialAuthSection({
     void isAppleSignInAvailable().then(setAppleAvailable);
   }, []);
 
-  const googleButton =
-    variant === 'stack' ? (
+  return (
+    <View style={styles.stack}>
       <Pressable
         style={({ pressed }) => [
           styles.stackBtn,
@@ -47,68 +46,18 @@ export function SocialAuthSection({
           {loading ? 'Connecting...' : 'Continue with Google'}
         </ThemedText>
       </Pressable>
-    ) : (
-      <Pressable
-        style={({ pressed }) => [
-          styles.gridBtn,
-          { backgroundColor: theme.card, borderColor: theme.border },
-          loading && { opacity: 0.8 },
-          pressed && { transform: [{ scale: 0.98 }] },
-        ]}
+
+      <AppleAuthentication.AppleAuthenticationButton
+        buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+        cornerRadius={Layout.chipRadius}
+        style={styles.appleStackBtn}
         onPress={() => {
+          if (loading) return;
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          onGooglePress();
+          onApplePress();
         }}
-        disabled={loading}>
-        <FontAwesome name='google' size={24} color='#EA4335' />
-        <ThemedText style={styles.gridBtnText} type='defaultSemiBold'>
-          {loading ? '...' : 'Google'}
-        </ThemedText>
-      </Pressable>
-    );
-
-  const appleButton =
-    Platform.OS === 'ios' && appleAvailable ? (
-      variant === 'stack' ? (
-        <AppleAuthentication.AppleAuthenticationButton
-          buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-          cornerRadius={Layout.chipRadius}
-          style={styles.appleStackBtn}
-          onPress={() => {
-            if (loading) return;
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onApplePress();
-          }}
-        />
-      ) : (
-        <AppleAuthentication.AppleAuthenticationButton
-          buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-          buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-          cornerRadius={Layout.chipRadius}
-          style={styles.appleGridBtn}
-          onPress={() => {
-            if (loading) return;
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onApplePress();
-          }}
-        />
-      )
-    ) : null;
-
-  if (variant === 'grid') {
-    return (
-      <View style={styles.gridRow}>
-        {googleButton}
-        {appleButton}
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.stack}>
-      {googleButton}
-      {appleButton}
+      />
     </View>
   );
 }

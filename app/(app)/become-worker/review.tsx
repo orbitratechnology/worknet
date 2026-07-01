@@ -6,6 +6,7 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { useRequireWorkerIdentity } from '@/hooks/use-require-worker-identity';
 import {
   profileCompleteness,
   useWorkerOnboarding,
@@ -13,6 +14,7 @@ import {
 import { useTheme } from '@/hooks/use-theme';
 import { formatLanguagesLabel } from '@/constants/worker-languages';
 import { publishWorkerProfile } from '@/lib/publish-worker';
+import { maskNic } from '@/lib/user-identity';
 import { getUserFacingMessage } from '@/lib/user-errors';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -23,8 +25,9 @@ import { Alert, StyleSheet, View } from 'react-native';
 export default function ReviewStep() {
   const router = useRouter();
   const theme = useTheme();
-  const { user, refreshUser } = useAuth();
-  const { draft, clearDraft } = useWorkerOnboarding();
+  const { user, refreshUser, userProfile } = useAuth();
+  useRequireWorkerIdentity();
+  const { draft } = useWorkerOnboarding();
   const [loading, setLoading] = useState(false);
 
   const publish = async () => {
@@ -32,7 +35,6 @@ export default function ReviewStep() {
     setLoading(true);
     try {
       await publishWorkerProfile(user, draft);
-      await clearDraft();
       await refreshUser();
       router.replace('/(tabs)/offer-service');
     } catch (e: unknown) {
@@ -42,7 +44,7 @@ export default function ReviewStep() {
     }
   };
 
-  const completeness = profileCompleteness(draft);
+  const completeness = profileCompleteness(draft, userProfile ?? undefined);
 
   return (
     <WizardScreen
@@ -107,10 +109,18 @@ export default function ReviewStep() {
       <View style={[styles.detailsList, { borderColor: theme.border }]}>
         <ReviewRow
           label='Phone'
-          value={draft.phoneNumber}
-          verified={draft.phoneVerified}
+          value={userProfile?.phoneNumber ?? ''}
+          verified={userProfile?.phoneVerified}
         />
-        <ReviewRow label='NIC' value='•••••••••' verified />
+        <ReviewRow
+          label='NIC'
+          value={
+            userProfile?.nicNumber
+              ? maskNic(userProfile.nicNumber)
+              : 'Not verified'
+          }
+          verified={userProfile?.nicVerified}
+        />
         {draft.languages.length ? (
           <ReviewRow
             label='Languages'

@@ -18,7 +18,7 @@ import {
 interface PhoneVerifyStepProps {
   verified: boolean;
   phoneNumber: string;
-  onVerified: (phone: string) => void;
+  onVerified: (phone: string) => void | Promise<void>;
 }
 
 export function PhoneVerifyStep({
@@ -72,7 +72,7 @@ export function PhoneVerifyStep({
     setError('');
     try {
       await confirmation.confirm(otp);
-      onVerified(normalizePhoneE164(phone));
+      await onVerified(normalizePhoneE164(phone));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Invalid code';

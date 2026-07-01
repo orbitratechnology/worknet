@@ -6,16 +6,36 @@ import {
   resolveImageUrl,
   workSamplePath,
 } from '@/lib/storage';
-import { WorkerOnboardingDraft } from '@/hooks/use-worker-onboarding';
+import { WorkerOnboardingDraft } from '@/types/worker-onboarding';
+import { saveWorkerDraftToUser } from '@/lib/worker-draft-sync';
+import { UserProfile } from '@/types/user';
+import { isIdentityVerified } from '@/lib/user-identity';
 import { ServiceProvider } from '@/types/database';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import { doc, deleteField, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
+import {
+  doc,
+  deleteField,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+} from '@react-native-firebase/firestore';
 
 export async function publishWorkerProfile(
   user: FirebaseAuthTypes.User,
   draft: WorkerOnboardingDraft,
   existingCreatedAt?: any,
 ): Promise<void> {
+  const userSnap = await getDoc(doc(db, 'users', user.uid));
+  const userData = userSnap.data();
+
+  if (!isIdentityVerified(userData as UserProfile)) {
+    throw new Error(
+      'Complete NIC and phone verification before publishing your worker profile.',
+    );
+  }
+
+  const phoneNumber = userData!.phoneNumber as string;
+
   const imageUrl = draft.imageUri
     ? await resolveImageUrl(draft.imageUri, profilePhotoPath(user.uid))
     : '';
@@ -36,8 +56,8 @@ export async function publishWorkerProfile(
     name: draft.name.trim(),
     bio: draft.bio.trim() || draft.primaryProfession,
     about: draft.bio.trim(),
-    nicVerified: false,
-    phoneVerified: draft.phoneVerified,
+    nicVerified: true,
+    phoneVerified: true,
     primaryProfessionId: draft.primaryProfessionId,
     primaryProfession: draft.primaryProfession,
     secondaryProfessions: [],
@@ -54,8 +74,8 @@ export async function publishWorkerProfile(
       homeCity: draft.homeCity,
       country: draft.country || 'Sri Lanka',
     },
-    phoneNumber: draft.phoneNumber,
-    whatsappNumber: draft.whatsappNumber.trim() || draft.phoneNumber,
+    phoneNumber,
+    whatsappNumber: draft.whatsappNumber.trim() || phoneNumber,
     contactMethod: draft.whatsappNumber ? 'WhatsApp' : 'Call',
     imageUrl,
     workSamples,
@@ -83,30 +103,27 @@ export async function publishWorkerProfile(
     { merge: true },
   );
 
-  if (draft.nicNumber.trim()) {
-    await setDoc(
-      doc(db, 'provider_verification', user.uid),
-      {
-        nicNumber: draft.nicNumber.trim(),
-        phoneVerified: draft.phoneVerified,
-        phoneNumber: draft.phoneNumber,
-        verifiedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-  }
+  await setDoc(
+    doc(db, 'provider_verification', user.uid),
+    {
+      phoneVerified: true,
+      phoneNumber,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 
   await setDoc(
     doc(db, 'users', user.uid),
     {
       isServiceProvider: true,
       name: draft.name.trim(),
-      phoneNumber: draft.phoneNumber,
-      phoneVerified: draft.phoneVerified,
       photoUrl: imageUrl,
+      workerOnboarding: draft,
       updatedAt: serverTimestamp(),
     },
     { merge: true },
   );
+
+  await saveWorkerDraftToUser(user.uid, draft);
 }

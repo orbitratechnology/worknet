@@ -1,8 +1,8 @@
 import { SocialAuthSection } from '@/components/auth/social-auth-section';
 import { LegalAgreement } from '@/components/legal/legal-agreement';
 import { ThemedText } from '@/components/themed-text';
-import { StackHeader } from '@/components/ui/stack-header';
 import { ScreenShell } from '@/components/ui/screen-shell';
+import { StackHeader } from '@/components/ui/stack-header';
 import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
@@ -113,224 +113,219 @@ export default function RegisterScreen() {
             styles.scrollContent,
             { paddingBottom: contentBottom + 24 },
           ]}>
-            <View style={styles.logoSection}>
-              <Image
-                source={require('@/assets/images/adaptive-icon.png')}
-                style={styles.logo}
-                contentFit='contain'
-              />
-            </View>
-
-            {/* Title Section */}
-            <View style={styles.titleSection}>
-              <ThemedText style={styles.title} type='title'>
-                Create Account
-              </ThemedText>
-              <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
-                Join Worknet to find trusted help or earn money in Sri Lanka.
-              </ThemedText>
-            </View>
-
-            {/* Form */}
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label} type='defaultSemiBold'>
-                  Full Name
-                </ThemedText>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    placeholder='e.g. John Perera'
-                    placeholderTextColor={theme.subtext}
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: theme.border,
-                        color: theme.text,
-                      },
-                    ]}
-                    value={fullName}
-                    onChangeText={setFullName}
-                  />
-                  <Feather
-                    name='user'
-                    size={18}
-                    color={theme.subtext}
-                    style={styles.inputIcon}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label} type='defaultSemiBold'>
-                  Email Address
-                </ThemedText>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    placeholder='name@example.com'
-                    placeholderTextColor={theme.subtext}
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: theme.border,
-                        color: theme.text,
-                      },
-                    ]}
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType='email-address'
-                    autoCapitalize='none'
-                  />
-                  <Feather
-                    name='mail'
-                    size={18}
-                    color={theme.subtext}
-                    style={styles.inputIcon}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label} type='defaultSemiBold'>
-                  Password
-                </ThemedText>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    placeholder='At least 8 characters'
-                    placeholderTextColor={theme.subtext}
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: theme.border,
-                        color: theme.text,
-                      },
-                    ]}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                  />
-                  <Pressable
-                    style={({ pressed }) => [styles.eyeIcon, { opacity: 1 }]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowPassword(!showPassword);
-                    }}>
-                    <Feather
-                      name={showPassword ? 'eye-off' : 'eye'}
-                      size={18}
-                      color={theme.subtext}
-                    />
-                  </Pressable>
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <ThemedText style={styles.label} type='defaultSemiBold'>
-                  Confirm Password
-                </ThemedText>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    placeholder='Re-enter password'
-                    placeholderTextColor={theme.subtext}
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.card,
-                        borderColor: theme.border,
-                        color: theme.text,
-                      },
-                    ]}
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showConfirmPassword}
-                  />
-                  <Pressable
-                    style={({ pressed }) => [styles.eyeIcon, { opacity: 1 }]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowConfirmPassword(!showConfirmPassword);
-                    }}>
-                    <Feather
-                      name={showConfirmPassword ? 'eye-off' : 'eye'}
-                      size={18}
-                      color={theme.subtext}
-                    />
-                  </Pressable>
-                </View>
-              </View>
-
-              {error ? (
-                <ThemedText
-                  style={[
-                    styles.errorText,
-                    { color: theme.error, marginTop: 10 },
-                  ]}>
-                  {error}
-                </ThemedText>
-              ) : null}
-
-              <Pressable
-                style={({ pressed }) => [
-                  styles.createBtn,
-                  { backgroundColor: theme.accent },
-                  loading && { opacity: 0.8 },
-                  pressed && { transform: [{ scale: 0.98 }] },
-                ]}
-                onPress={handleRegister}
-                disabled={loading}>
-                <ThemedText
-                  style={[styles.createBtnText, { color: theme.onAccent }]}
-                  type='defaultSemiBold'>
-                  {loading ? 'Creating Account...' : 'Create Account'}
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            {/* Divider */}
-            <View style={styles.dividerContainer}>
-              <View
-                style={[styles.divider, { backgroundColor: theme.border }]}
-              />
-              <ThemedText
-                style={[styles.dividerText, { color: theme.subtext }]}>
-                Or continue with
-              </ThemedText>
-              <View
-                style={[styles.divider, { backgroundColor: theme.border }]}
-              />
-            </View>
-
-            <SocialAuthSection
-              loading={loading}
-              onGooglePress={handleGoogleRegister}
-              onApplePress={handleAppleRegister}
-              variant='grid'
+          <View style={styles.logoSection}>
+            <Image
+              source={require('@/assets/images/adaptive-icon.png')}
+              style={styles.logo}
+              contentFit='contain'
             />
-            <LegalAgreement />
+          </View>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-              <View style={styles.signUpRow}>
-                <ThemedText style={{ color: theme.subtext }}>
-                  Already have an account?{' '}
-                </ThemedText>
+          {/* Title Section */}
+          <View style={styles.titleSection}>
+            <ThemedText style={styles.title} type='title'>
+              Create Account
+            </ThemedText>
+            <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
+              Join Worknet to find trusted help or earn money in Sri Lanka.
+            </ThemedText>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label} type='defaultSemiBold'>
+                Full Name
+              </ThemedText>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  placeholder='e.g. John Perera'
+                  placeholderTextColor={theme.subtext}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      color: theme.text,
+                    },
+                  ]}
+                  value={fullName}
+                  onChangeText={setFullName}
+                />
+                <Feather
+                  name='user'
+                  size={18}
+                  color={theme.subtext}
+                  style={styles.inputIcon}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label} type='defaultSemiBold'>
+                Email Address
+              </ThemedText>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  placeholder='name@example.com'
+                  placeholderTextColor={theme.subtext}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      color: theme.text,
+                    },
+                  ]}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType='email-address'
+                  autoCapitalize='none'
+                />
+                <Feather
+                  name='mail'
+                  size={18}
+                  color={theme.subtext}
+                  style={styles.inputIcon}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label} type='defaultSemiBold'>
+                Password
+              </ThemedText>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  placeholder='At least 8 characters'
+                  placeholderTextColor={theme.subtext}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      color: theme.text,
+                    },
+                  ]}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
                 <Pressable
+                  style={({ pressed }) => [styles.eyeIcon, { opacity: 1 }]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push('/login');
+                    setShowPassword(!showPassword);
                   }}>
-                  <ThemedText
-                    style={[styles.logInText, { color: theme.accent }]}
-                    type='defaultSemiBold'>
-                    Log In
-                  </ThemedText>
+                  <Feather
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={18}
+                    color={theme.subtext}
+                  />
                 </Pressable>
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+
+            <View style={styles.inputGroup}>
+              <ThemedText style={styles.label} type='defaultSemiBold'>
+                Confirm Password
+              </ThemedText>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  placeholder='Re-enter password'
+                  placeholderTextColor={theme.subtext}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                      color: theme.text,
+                    },
+                  ]}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <Pressable
+                  style={({ pressed }) => [styles.eyeIcon, { opacity: 1 }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowConfirmPassword(!showConfirmPassword);
+                  }}>
+                  <Feather
+                    name={showConfirmPassword ? 'eye-off' : 'eye'}
+                    size={18}
+                    color={theme.subtext}
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            {error ? (
+              <ThemedText
+                style={[
+                  styles.errorText,
+                  { color: theme.error, marginTop: 10 },
+                ]}>
+                {error}
+              </ThemedText>
+            ) : null}
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.createBtn,
+                { backgroundColor: theme.accent },
+                loading && { opacity: 0.8 },
+                pressed && { transform: [{ scale: 0.98 }] },
+              ]}
+              onPress={handleRegister}
+              disabled={loading}>
+              <ThemedText
+                style={[styles.createBtnText, { color: theme.onAccent }]}
+                type='defaultSemiBold'>
+                {loading ? 'Creating Account...' : 'Create Account'}
+              </ThemedText>
+            </Pressable>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.dividerContainer}>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <ThemedText style={[styles.dividerText, { color: theme.subtext }]}>
+              Or continue with
+            </ThemedText>
+            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          </View>
+
+          <SocialAuthSection
+            loading={loading}
+            onGooglePress={handleGoogleRegister}
+            onApplePress={handleAppleRegister}
+            variant='stack'
+          />
+          <LegalAgreement />
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <View style={styles.signUpRow}>
+              <ThemedText style={{ color: theme.subtext }}>
+                Already have an account?{' '}
+              </ThemedText>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/login');
+                }}>
+                <ThemedText
+                  style={[styles.logInText, { color: theme.accent }]}
+                  type='defaultSemiBold'>
+                  Log In
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenShell>
   );
 }

@@ -270,6 +270,16 @@ export default function PublicProfileScreen() {
             rating={provider.rating}
             reviewCount={reviewCount}
             isOnline={isOnline}
+            onRatingPress={() =>
+              router.push({
+                pathname: '/(app)/provider-reviews',
+                params: {
+                  id: provider.id,
+                  name: provider.name,
+                  rating: String(provider.rating ?? 0),
+                },
+              })
+            }
           />
 
           <View style={styles.titleBlock}>

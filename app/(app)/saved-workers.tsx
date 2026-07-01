@@ -11,10 +11,11 @@ import { ServiceProvider } from '@/types/database';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { doc, getDoc } from '@react-native-firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -66,6 +67,30 @@ export default function SavedWorkersScreen() {
 
   const loading = savedLoading || loadingWorkers;
 
+  const renderWorker = useCallback(
+    ({ item }: { item: ServiceProvider }) => (
+      <View style={styles.gridItem}>
+        <ServiceCard
+          id={item.id}
+          name={item.name}
+          role={item.primaryProfession}
+          distance={item.location?.homeCity ?? 'Saved'}
+          price={
+            item.pricing?.baseRate
+              ? `LKR ${item.pricing.baseRate}/hr`
+              : 'Contact for price'
+          }
+          imageUrl={item.imageUrl}
+          rating={item.rating}
+          reviewCount={item.reviewCount}
+          availabilityStatus={item.availabilityStatus}
+          showSave
+        />
+      </View>
+    ),
+    [],
+  );
+
   return (
     <ScreenShell>
       <StackHeader title='Saved Workers' />
@@ -114,31 +139,17 @@ export default function SavedWorkersScreen() {
         <FlatList
           data={workers}
           keyExtractor={(item) => item.id}
+          renderItem={renderWorker}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
           contentInsetAdjustmentBehavior='automatic'
           contentContainerStyle={[
             styles.listContent,
             { paddingBottom: contentBottom },
           ]}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          renderItem={({ item }) => (
-            <View style={styles.cardWrap}>
-              <ServiceCard
-                id={item.id}
-                name={item.name}
-                role={item.primaryProfession}
-                distance={item.location?.homeCity ?? 'Saved'}
-                price={
-                  item.pricing?.baseRate
-                    ? `LKR ${item.pricing.baseRate}/hr`
-                    : 'Contact for price'
-                }
-                imageUrl={item.imageUrl}
-                rating={item.rating}
-                reviewCount={item.reviewCount}
-                availabilityStatus={item.availabilityStatus}
-              />
-            </View>
-          )}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          removeClippedSubviews={Platform.OS === 'android'}
         />
       )}
     </ScreenShell>
@@ -152,11 +163,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.screenPadding,
   },
   listContent: {
-    paddingHorizontal: Layout.screenPadding,
-    paddingTop: 8,
+    paddingTop: 4,
   },
-  cardWrap: {
-    width: '100%',
+  columnWrapper: {
+    gap: Layout.itemGap,
+    paddingHorizontal: 10,
+    marginBottom: Layout.itemGap,
+  },
+  gridItem: {
+    width: '48%',
+    maxWidth: '48%',
   },
   emptyCard: {
     width: '100%',

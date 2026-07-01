@@ -5,7 +5,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 const AVATAR_SIZE = 112;
 const OUTER_RING = 4;
@@ -16,6 +16,7 @@ type ProfileAvatarProps = {
   rating: number;
   reviewCount: number;
   isOnline: boolean;
+  onRatingPress?: () => void;
 };
 
 export function ProfileAvatar({
@@ -24,6 +25,7 @@ export function ProfileAvatar({
   rating,
   reviewCount,
   isOnline,
+  onRatingPress,
 }: ProfileAvatarProps) {
   const theme = useTheme();
   const colorScheme = useColorScheme() ?? 'light';
@@ -66,7 +68,19 @@ export function ProfileAvatar({
         />
       </View>
 
-      <View style={styles.ratingPill}>
+      <Pressable
+        onPress={onRatingPress}
+        disabled={!onRatingPress}
+        accessibilityRole={onRatingPress ? 'button' : 'text'}
+        accessibilityLabel={
+          reviewCount > 0
+            ? `Rating ${rating.toFixed(1)} from ${reviewCount} reviews`
+            : `Rating ${rating.toFixed(1)}`
+        }
+        style={({ pressed }) => [
+          styles.ratingPill,
+          onRatingPress && pressed ? { opacity: 0.75 } : null,
+        ]}>
         <Feather name='star' size={13} color='#FFB300' />
         <ThemedText style={styles.ratingValue} selectable>
           {rating.toFixed(1)}
@@ -78,7 +92,10 @@ export function ProfileAvatar({
             ({reviewCount})
           </ThemedText>
         ) : null}
-      </View>
+        {onRatingPress ? (
+          <Feather name='chevron-right' size={14} color={theme.subtext} />
+        ) : null}
+      </Pressable>
     </View>
   );
 }

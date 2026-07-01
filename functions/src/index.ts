@@ -15,3 +15,4 @@ export {
   aggregateReviewRating,
 } from './preventDuplicateReview.js';
 export { anonymizeUserReviews } from './anonymizeUserReviews.js';
+export { enforceNicPolicy } from './enforceNicPolicy.js';

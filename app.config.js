@@ -1,6 +1,6 @@
 export default ({ config }) => ({
   ...config,
-  name: 'worknet',
+  name: 'Worknet',
   slug: 'worknet',
   version: '1.0.0',
   orientation: 'portrait',
@@ -13,15 +13,22 @@ export default ({ config }) => ({
     ...config.ios,
     bundleIdentifier: 'com.orbitra.worknet',
     usesAppleSignIn: true,
-    googleServicesFile: './GoogleService-Info.plist',
+    googleServicesFile:
+      process.env.GOOGLE_SERVICE_INFO_PLIST ?? './GoogleService-Info.plist',
     config: {
       googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
+      usesNonExemptEncryption: false,
+    },
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+      CFBundleDisplayName: 'Worknet',
     },
   },
   android: {
     ...config.android,
     package: 'com.orbitra.worknet',
-    googleServicesFile: './google-services.json',
+    googleServicesFile:
+      process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     adaptiveIcon: {
       backgroundColor: '#ffffff',
       foregroundImage: './assets/images/icon.png',
@@ -79,7 +86,7 @@ export default ({ config }) => ({
   ],
   experiments: {
     typedRoutes: true,
-    // reactCompiler: true,
+    reactCompiler: true,
   },
   extra: {
     ...config.extra,

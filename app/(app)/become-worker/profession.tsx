@@ -6,20 +6,28 @@ import { ThemedText } from '@/components/themed-text';
 import { SearchField } from '@/components/ui/search-field';
 import { WORKER_TYPES } from '@/constants/worker-types';
 import { Layout } from '@/constants/theme';
+import { useRequireWorkerIdentity } from '@/hooks/use-require-worker-identity';
 import { useWorkerOnboarding } from '@/hooks/use-worker-onboarding';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 export default function ProfessionStep() {
   const router = useRouter();
   const theme = useTheme();
-  const { draft, updateDraft } = useWorkerOnboarding();
+  useRequireWorkerIdentity();
+  const { draft, updateDraft, loaded } = useWorkerOnboarding();
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(draft.primaryProfessionId);
+
+  useEffect(() => {
+    if (loaded && draft.primaryProfessionId) {
+      setSelectedId(draft.primaryProfessionId);
+    }
+  }, [loaded, draft.primaryProfessionId]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -75,6 +83,10 @@ export default function ProfessionStep() {
               onPress={() => {
                 Haptics.selectionAsync();
                 setSelectedId(item.id);
+                updateDraft({
+                  primaryProfessionId: item.id,
+                  primaryProfession: item.name,
+                });
               }}
               style={({ pressed }) => [
                 styles.row,

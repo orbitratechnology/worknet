@@ -1,7 +1,9 @@
+import { WorkerOnboardingProvider } from '@/hooks/use-worker-onboarding';
 import { Stack } from 'expo-router';
 
 export default function BecomeWorkerLayout() {
   return (
+    <WorkerOnboardingProvider>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name='index' />
       <Stack.Screen name='identity' />
@@ -11,5 +13,6 @@ export default function BecomeWorkerLayout() {
       <Stack.Screen name='details' />
       <Stack.Screen name='review' />
     </Stack>
+    </WorkerOnboardingProvider>
   );
 }

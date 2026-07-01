@@ -28,16 +28,61 @@ service cloud.firestore {
         && request.resource.data.reason.size() <= 500;
     }
 
+    function validNicNumber(nic) {
+      return nic is string
+        && (nic.matches('^[0-9]{9}[vV]$') || nic.matches('^[0-9]{12}$'));
+    }
+
+    function verifiedIdentityImmutable() {
+      return (
+        !(resource.data.get('nicVerified', false) == true)
+        || (
+          request.resource.data.get('nicVerified', false) == true
+          && request.resource.data.nicNumber == resource.data.nicNumber
+        )
+      ) && (
+        !(resource.data.get('phoneVerified', false) == true)
+        || (
+          request.resource.data.get('phoneVerified', false) == true
+          && request.resource.data.phoneNumber == resource.data.phoneNumber
+        )
+      );
+    }
+
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, create, delete: if isOwner(userId);
+      allow update: if isOwner(userId) && verifiedIdentityImmutable();
 
       match /sessions/{sessionId} {
         allow read, write: if isOwner(userId);
       }
     }
 
+    match /nic_registry/{nic} {
+      allow read, write: if false;
+    }
+
     match /provider_verification/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && (
+          !('nicNumber' in request.resource.data)
+          || validNicNumber(request.resource.data.nicNumber)
+        );
+      allow update: if isOwner(userId)
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['nicNumber'])
+          || request.resource.data.nicNumber == resource.data.nicNumber
+          || (
+            !('nicNumber' in resource.data)
+            && validNicNumber(request.resource.data.nicNumber)
+          )
+        )
+        && (
+          !('nicNumber' in request.resource.data)
+          || validNicNumber(request.resource.data.nicNumber)
+        );
+      allow delete: if false;
     }
 
     match /service_providers/{providerId} {

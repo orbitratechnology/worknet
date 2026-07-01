@@ -1,5 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
-import { cardShadow, Layout, type ColorScheme } from '@/constants/theme';
+import { Layout, cardShadow, type ColorScheme } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -37,12 +37,6 @@ export function HomeBanner() {
     if (providerOffline) return 'goOnline';
     return null;
   }, [dismissed, user, isWorker, providerOffline]);
-
-  const dismiss = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await AsyncStorage.setItem(DISMISS_KEY, '1');
-    setDismissed(true);
-  }, []);
 
   const handlePress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -104,9 +98,6 @@ export function HomeBanner() {
           </ThemedText>
         </View>
         <Feather name='chevron-right' size={18} color={theme.subtext} />
-      </Pressable>
-      <Pressable onPress={dismiss} style={styles.dismissBtn} hitSlop={8}>
-        <Feather name='x' size={16} color={theme.subtext} />
       </Pressable>
     </View>
   );

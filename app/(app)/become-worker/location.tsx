@@ -6,20 +6,22 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
 import { Layout } from '@/constants/theme';
+import { useRequireWorkerIdentity } from '@/hooks/use-require-worker-identity';
 import { useWorkerOnboarding } from '@/hooks/use-worker-onboarding';
 import { useTheme } from '@/hooks/use-theme';
 import { getGeohash } from '@/lib/geo';
 import { Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 export default function LocationStep() {
   const router = useRouter();
   const theme = useTheme();
-  const { draft, updateDraft } = useWorkerOnboarding();
+  useRequireWorkerIdentity();
+  const { draft, updateDraft, loaded } = useWorkerOnboarding();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [region, setRegion] = useState({
@@ -33,6 +35,32 @@ export default function LocationStep() {
     longitude: draft.longitude ?? 79.8612,
   });
   const [city, setCity] = useState(draft.homeCity);
+
+  useEffect(() => {
+    if (!loaded) return;
+    if (draft.latitude != null && draft.longitude != null) {
+      setMarker({ latitude: draft.latitude, longitude: draft.longitude });
+      setRegion((r) => ({
+        ...r,
+        latitude: draft.latitude!,
+        longitude: draft.longitude!,
+      }));
+    }
+    if (draft.homeCity) setCity(draft.homeCity);
+  }, [loaded, draft.latitude, draft.longitude, draft.homeCity]);
+
+  const persistLocation = (
+    lat: number,
+    lng: number,
+    nextCity: string,
+  ) => {
+    updateDraft({
+      latitude: lat,
+      longitude: lng,
+      homeCity: nextCity,
+      country: draft.country || 'Sri Lanka',
+    });
+  };
 
   const useCurrentLocation = async () => {
     setLoading(true);
@@ -57,7 +85,9 @@ export default function LocationStep() {
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
       }));
-      setCity(geo?.city || geo?.district || geo?.subregion || 'Colombo');
+      const nextCity = geo?.city || geo?.district || geo?.subregion || 'Colombo';
+      setCity(nextCity);
+      persistLocation(loc.coords.latitude, loc.coords.longitude, nextCity);
     } catch {
       setError('Could not get location. Tap the map to set your pin.');
     } finally {
@@ -122,12 +152,18 @@ export default function LocationStep() {
           style={StyleSheet.absoluteFill}
           region={region}
           onPress={(e) => {
-            setMarker(e.nativeEvent.coordinate);
+            const coord = e.nativeEvent.coordinate;
+            setMarker(coord);
+            persistLocation(coord.latitude, coord.longitude, city);
           }}>
           <Marker
             coordinate={marker}
             draggable
-            onDragEnd={(e) => setMarker(e.nativeEvent.coordinate)}
+            onDragEnd={(e) => {
+              const coord = e.nativeEvent.coordinate;
+              setMarker(coord);
+              persistLocation(coord.latitude, coord.longitude, city);
+            }}
           />
         </MapView>
       </View>

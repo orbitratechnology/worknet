@@ -10,7 +10,7 @@ const creamMuted = '#F3EEE6';
 const creamDeep = '#EBE4DA';
 
 /** Ink hierarchy */
-const ink = '#222222';
+const ink = '#222233';
 const inkMuted = '#717171';
 const inkLight = '#B0B0B0';
 

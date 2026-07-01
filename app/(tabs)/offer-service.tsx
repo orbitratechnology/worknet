@@ -5,8 +5,10 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { SectionHeader } from '@/components/ui/section-header';
 import { cardShadow, Layout, Typography } from '@/constants/theme';
+import { WORKER_ONBOARDING_STEPS } from '@/constants/worker-onboarding-steps';
 import { profileCompleteness } from '@/hooks/use-worker-onboarding';
 import { useAuth } from '@/context/auth';
+import { isIdentityVerified, maskNic } from '@/lib/user-identity';
 import { useRequireAuth } from '@/hooks/use-require-auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -14,6 +16,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { formatRatingDisplay, formatReviewCount } from '@/lib/ratings';
 import { db } from '@/lib/firebase';
 import { ServiceProvider } from '@/types/database';
+import { UserProfile } from '@/types/user';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
@@ -32,27 +35,165 @@ const ONBOARD_BENEFITS = [
   {
     icon: 'search' as const,
     title: 'Get discovered locally',
-    body: 'Appear in search when customers need your skills nearby.',
+    body: 'Show up when customers search nearby.',
   },
   {
     icon: 'phone' as const,
     title: 'Direct contact',
-    body: 'Customers reach you by phone or WhatsApp — no middleman.',
+    body: 'Customers call or WhatsApp you directly.',
   },
   {
     icon: 'shield' as const,
     title: 'You stay in control',
-    body: 'Toggle availability anytime. Your NIC stays private.',
+    body: 'Toggle availability anytime.',
   },
-];
+] as const;
 
 const ONBOARD_STEPS = [
-  { label: 'Name & photo', icon: 'user' as const },
-  { label: 'NIC & phone verify', icon: 'shield' as const },
-  { label: 'Choose profession', icon: 'briefcase' as const },
-  { label: 'Set your location', icon: 'map-pin' as const },
+  { label: 'Verify NIC & phone', icon: 'shield' as const },
+  { label: 'Add profession & city', icon: 'briefcase' as const },
   { label: 'Publish profile', icon: 'check-circle' as const },
-];
+] as const;
+
+function WorkerRegistrationPrompt({
+  onRegister,
+}: {
+  onRegister: () => void;
+}) {
+  const theme = useTheme();
+  const colorScheme = useColorScheme() ?? 'light';
+
+  return (
+    <>
+      <ScreenHeader title='Become a Worker' />
+
+      <View
+        style={[
+          styles.heroCard,
+          {
+            backgroundColor: theme.text,
+            boxShadow: cardShadow(colorScheme),
+          },
+        ]}>
+        <View style={styles.heroTopRow}>
+          <View
+            style={[
+              styles.heroIconWrap,
+              { backgroundColor: 'rgba(255,255,255,0.12)' },
+            ]}>
+            <MaterialCommunityIcons
+              name='hard-hat'
+              size={24}
+              color={theme.onAccent}
+            />
+          </View>
+          <View
+            style={[
+              styles.heroBadge,
+              { backgroundColor: 'rgba(255,255,255,0.15)' },
+            ]}>
+            <ThemedText style={styles.heroBadgeText}>About 5 minutes</ThemedText>
+          </View>
+        </View>
+
+        <ThemedText style={[styles.heroTitle, { color: theme.onAccent }]}>
+          Start earning as a Worker
+        </ThemedText>
+        <ThemedText style={styles.heroBody}>
+          List your skills once. Customers nearby can find and contact you.
+        </ThemedText>
+
+        <HapticPressable
+          onPress={onRegister}
+          hapticStyle={Haptics.ImpactFeedbackStyle.Medium}
+          style={({ pressed }) => [
+            styles.heroPrimaryBtn,
+            {
+              backgroundColor: theme.onAccent,
+              opacity: pressed ? 0.92 : 1,
+            },
+          ]}>
+          <ThemedText
+            style={[styles.heroPrimaryBtnText, { color: theme.text }]}>
+            Start Worker Registration
+          </ThemedText>
+          <Feather name='arrow-right' size={18} color={theme.text} />
+        </HapticPressable>
+
+        <ThemedText style={styles.heroFootnote}>
+          Free to join. No commission. You control availability.
+        </ThemedText>
+      </View>
+
+      <View
+        style={[
+          styles.benefitsCard,
+          {
+            backgroundColor: theme.card,
+            borderColor: theme.border,
+            boxShadow: cardShadow(colorScheme),
+          },
+        ]}>
+        {ONBOARD_BENEFITS.map((benefit, index) => (
+          <View key={benefit.title}>
+            <View style={styles.benefitRow}>
+              <View
+                style={[styles.benefitIcon, { backgroundColor: theme.muted }]}>
+                <Feather name={benefit.icon} size={16} color={theme.text} />
+              </View>
+              <View style={styles.benefitTextBlock}>
+                <ThemedText style={styles.benefitTitle} type='defaultSemiBold'>
+                  {benefit.title}
+                </ThemedText>
+                <ThemedText
+                  style={[styles.benefitBody, { color: theme.subtext }]}>
+                  {benefit.body}
+                </ThemedText>
+              </View>
+            </View>
+            {index < ONBOARD_BENEFITS.length - 1 ? (
+              <View
+                style={[styles.benefitDivider, { backgroundColor: theme.border }]}
+              />
+            ) : null}
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.stepsSection}>
+        <ThemedText style={[styles.stepsLabel, { color: theme.subtext }]}>
+          What you will complete
+        </ThemedText>
+        <View
+          style={[
+            styles.stepsCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              boxShadow: cardShadow(colorScheme),
+            },
+          ]}>
+          {ONBOARD_STEPS.map((step, index) => (
+            <View key={step.label}>
+              <View style={styles.stepRow}>
+                <View
+                  style={[styles.stepIcon, { backgroundColor: theme.muted }]}>
+                  <Feather name={step.icon} size={16} color={theme.text} />
+                </View>
+                <ThemedText style={styles.stepText}>{step.label}</ThemedText>
+              </View>
+              {index < ONBOARD_STEPS.length - 1 ? (
+                <View
+                  style={[styles.stepDivider, { backgroundColor: theme.border }]}
+                />
+              ) : null}
+            </View>
+          ))}
+        </View>
+      </View>
+    </>
+  );
+}
 
 function StatBox({
   label,
@@ -120,9 +261,11 @@ function StatBox({
 function WorkerDashboard({
   data,
   userId,
+  userProfile,
 }: {
   data: ServiceProvider;
   userId: string;
+  userProfile: UserProfile | null;
 }) {
   const theme = useTheme();
   const colorScheme = useColorScheme() ?? 'light';
@@ -133,28 +276,28 @@ function WorkerDashboard({
     setOnline(data.availabilityStatus === 'online');
   }, [data.availabilityStatus]);
 
-  const completeness = profileCompleteness({
-    name: data.name,
-    imageUri: data.imageUrl ?? null,
-    nicNumber: data.phoneVerified ? 'verified' : '',
-    phoneVerified: !!data.phoneVerified,
-    phoneNumber: data.phoneNumber,
-    primaryProfessionId: data.primaryProfessionId,
-    primaryProfession: data.primaryProfession,
-    latitude: data.location?.latitude ?? null,
-    longitude: data.location?.longitude ?? null,
-    homeCity: data.location?.homeCity ?? '',
-    country: data.location?.country ?? '',
-    whatsappNumber: data.whatsappNumber ?? '',
-    bio: data.bio ?? '',
-    experienceYears: data.experienceYears ?? '0-1',
-    baseRate: data.pricing?.baseRate?.toString() ?? '',
-    pricingType: 'Hourly',
-    workSampleUris: [],
-    socialLinks: data.socialLinks ?? {},
-    emergencyAvailability: data.emergencyAvailability,
-    languages: data.languages ?? [],
-  });
+  const completeness = profileCompleteness(
+    {
+      name: data.name,
+      imageUri: data.imageUrl ?? null,
+      primaryProfessionId: data.primaryProfessionId,
+      primaryProfession: data.primaryProfession,
+      latitude: data.location?.latitude ?? null,
+      longitude: data.location?.longitude ?? null,
+      homeCity: data.location?.homeCity ?? '',
+      country: data.location?.country ?? '',
+      whatsappNumber: data.whatsappNumber ?? '',
+      bio: data.bio ?? '',
+      experienceYears: data.experienceYears ?? '0-1',
+      baseRate: data.pricing?.baseRate?.toString() ?? '',
+      pricingType: 'Hourly',
+      workSampleUris: [],
+      socialLinks: data.socialLinks ?? {},
+      emergencyAvailability: data.emergencyAvailability,
+      languages: data.languages ?? [],
+    },
+    userProfile ?? undefined,
+  );
 
   const reviewCount = data.reviewCount ?? 0;
   const ratingValue = data.rating ?? 0;
@@ -182,33 +325,23 @@ function WorkerDashboard({
   };
 
   const quickActions = useMemo(
-    () => [
-      {
-        icon: 'edit-3' as const,
-        title: 'Edit profile',
-        subtitle: 'Name, photo, and identity',
-        href: '/(app)/become-worker/identity',
-      },
-      {
-        icon: 'image' as const,
-        title: 'Work photos',
-        subtitle: 'Showcase your best projects',
-        href: '/(app)/become-worker/details',
-      },
-      {
-        icon: 'dollar-sign' as const,
-        title: 'Pricing & bio',
-        subtitle: 'Rate, experience, and about you',
-        href: '/(app)/become-worker/details',
-      },
-      {
-        icon: 'map-pin' as const,
-        title: 'Location',
-        subtitle: data.location?.homeCity ?? 'Update your service area',
-        href: '/(app)/become-worker/location',
-      },
-    ],
-    [data.location?.homeCity],
+    () =>
+      WORKER_ONBOARDING_STEPS.filter((step) => {
+        if (step.step <= 1) return false;
+        if (
+          step.href.includes('verification') &&
+          isIdentityVerified(userProfile)
+        ) {
+          return false;
+        }
+        return true;
+      }).map((step) => ({
+        icon: step.icon,
+        title: step.label,
+        subtitle: step.subtitle,
+        href: step.href,
+      })),
+    [userProfile],
   );
 
   return (
@@ -292,6 +425,45 @@ function WorkerDashboard({
               Improve
             </ThemedText>
           </HapticPressable>
+        </View>
+      ) : null}
+
+      {isIdentityVerified(userProfile) ? (
+        <View
+          style={[
+            styles.actionsCard,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+              boxShadow: cardShadow(colorScheme),
+            },
+          ]}>
+          <SectionHeader title='Verified identity' />
+          <View style={styles.identityRow}>
+            <Feather name='credit-card' size={16} color={theme.subtext} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <ThemedText style={[styles.identityLabel, { color: theme.subtext }]}>
+                NIC
+              </ThemedText>
+              <ThemedText style={styles.identityValue}>
+                {maskNic(userProfile!.nicNumber!)}
+              </ThemedText>
+            </View>
+            <Feather name='lock' size={14} color={theme.subtext} />
+          </View>
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          <View style={styles.identityRow}>
+            <Feather name='smartphone' size={16} color={theme.subtext} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <ThemedText style={[styles.identityLabel, { color: theme.subtext }]}>
+                Phone
+              </ThemedText>
+              <ThemedText style={styles.identityValue}>
+                {userProfile!.phoneNumber}
+              </ThemedText>
+            </View>
+            <Feather name='lock' size={14} color={theme.subtext} />
+          </View>
         </View>
       ) : null}
 
@@ -481,7 +653,11 @@ export default function OfferServiceScreen() {
             </View>
           </View>
 
-          <WorkerDashboard data={workerData} userId={user!.uid} />
+          <WorkerDashboard
+            data={workerData}
+            userId={user!.uid}
+            userProfile={userProfile}
+          />
         </ScrollView>
       </ScreenShell>
     );
@@ -496,119 +672,7 @@ export default function OfferServiceScreen() {
           { paddingBottom: contentBottom },
         ]}
         showsVerticalScrollIndicator={false}>
-        <ScreenHeader
-          title='Become a Worker'
-          subtitle='List your skills and get discovered locally.'
-        />
-
-        <View
-          style={[
-            styles.heroCard,
-            {
-              backgroundColor: theme.text,
-              boxShadow: cardShadow(colorScheme),
-            },
-          ]}>
-          <View style={styles.heroIconRow}>
-            <MaterialCommunityIcons
-              name='hard-hat'
-              size={28}
-              color={theme.onAccent}
-            />
-            <View
-              style={[
-                styles.heroBadge,
-                { backgroundColor: 'rgba(255,255,255,0.15)' },
-              ]}>
-              <ThemedText style={styles.heroBadgeText}>~5 min setup</ThemedText>
-            </View>
-          </View>
-          <ThemedText style={[styles.heroTitle, { color: theme.onAccent }]}>
-            Turn your skills into local work
-          </ThemedText>
-          <ThemedText style={styles.heroBody}>
-            Join workers across Sri Lanka. Customers find you and contact you
-            directly — no approval wait.
-          </ThemedText>
-        </View>
-
-        <SectionHeader title='Why join Worknet' />
-        <View style={styles.benefitsGrid}>
-          {ONBOARD_BENEFITS.map((b) => (
-            <View
-              key={b.title}
-              style={[
-                styles.benefitCard,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                  boxShadow: cardShadow(colorScheme),
-                },
-              ]}>
-              <View
-                style={[styles.benefitIcon, { backgroundColor: theme.muted }]}>
-                <Feather name={b.icon} size={18} color={theme.text} />
-              </View>
-              <ThemedText style={styles.benefitTitle} type='defaultSemiBold'>
-                {b.title}
-              </ThemedText>
-              <ThemedText style={[styles.benefitBody, { color: theme.subtext }]}>
-                {b.body}
-              </ThemedText>
-            </View>
-          ))}
-        </View>
-
-        <SectionHeader title='How it works' />
-        <View
-          style={[
-            styles.stepsCard,
-            {
-              backgroundColor: theme.card,
-              borderColor: theme.border,
-              boxShadow: cardShadow(colorScheme),
-            },
-          ]}>
-          {ONBOARD_STEPS.map((step, i) => (
-            <View key={step.label}>
-              <View style={styles.stepRow}>
-                <View
-                  style={[styles.stepIcon, { backgroundColor: theme.muted }]}>
-                  <Feather name={step.icon} size={16} color={theme.text} />
-                </View>
-                <View style={styles.stepTextBlock}>
-                  <ThemedText style={styles.stepNumber}>
-                    Step {i + 1}
-                  </ThemedText>
-                  <ThemedText style={styles.stepText}>{step.label}</ThemedText>
-                </View>
-                <Feather name='chevron-right' size={16} color={theme.subtext} />
-              </View>
-              {i < ONBOARD_STEPS.length - 1 ? (
-                <View
-                  style={[styles.stepDivider, { backgroundColor: theme.border }]}
-                />
-              ) : null}
-            </View>
-          ))}
-        </View>
-
-        <HapticPressable
-          onPress={startOnboarding}
-          hapticStyle={Haptics.ImpactFeedbackStyle.Medium}
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            { backgroundColor: theme.accent, opacity: pressed ? 0.92 : 1 },
-          ]}>
-          <Feather name='plus-circle' size={20} color={theme.onAccent} />
-          <ThemedText style={[styles.primaryBtnText, { color: theme.onAccent }]}>
-            Start Worker Registration
-          </ThemedText>
-        </HapticPressable>
-
-        <ThemedText style={[styles.footerNote, { color: theme.subtext }]}>
-          Free to join · No commission · You control your availability
-        </ThemedText>
+        <WorkerRegistrationPrompt onRegister={startOnboarding} />
       </ScrollView>
     </ScreenShell>
   );
@@ -621,14 +685,22 @@ const styles = StyleSheet.create({
   heroCard: {
     marginHorizontal: Layout.screenPadding,
     borderRadius: Layout.cardRadius,
-    padding: 24,
-    gap: 12,
+    padding: 22,
+    gap: 10,
     borderCurve: 'continuous',
   },
-  heroIconRow: {
+  heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  heroIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   heroBadge: {
     paddingHorizontal: 10,
@@ -644,33 +716,75 @@ const styles = StyleSheet.create({
   heroTitle: {
     ...Typography.title,
     fontSize: 22,
+    letterSpacing: -0.4,
   },
   heroBody: {
     color: 'rgba(250,247,242,0.82)',
     fontSize: 15,
     lineHeight: 22,
   },
-  benefitsGrid: {
-    paddingHorizontal: Layout.screenPadding,
-    gap: 10,
+  heroPrimaryBtn: {
+    marginTop: 6,
+    minHeight: 52,
+    borderRadius: Layout.chipRadius,
+    borderCurve: 'continuous',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
-  benefitCard: {
-    padding: 16,
+  heroPrimaryBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  heroFootnote: {
+    color: 'rgba(250,247,242,0.65)',
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  benefitsCard: {
+    marginHorizontal: Layout.screenPadding,
     borderRadius: Layout.cardRadius,
     borderWidth: 1,
     borderCurve: 'continuous',
-    gap: 8,
+    overflow: 'hidden',
+  },
+  benefitRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   benefitIcon: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderRadius: 10,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 1,
+  },
+  benefitTextBlock: {
+    flex: 1,
+    gap: 2,
   },
   benefitTitle: { fontSize: 15 },
   benefitBody: { fontSize: 13, lineHeight: 18 },
+  benefitDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 60,
+  },
+  stepsSection: {
+    gap: 10,
+  },
+  stepsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginHorizontal: Layout.screenPadding,
+  },
   stepsCard: {
     marginHorizontal: Layout.screenPadding,
     borderRadius: Layout.cardRadius,
@@ -682,46 +796,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
   },
   stepIcon: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderRadius: 10,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepTextBlock: { flex: 1, gap: 2 },
-  stepNumber: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-    opacity: 0.6,
-  },
-  stepText: { fontSize: 15, fontWeight: '600' },
+  stepText: { flex: 1, fontSize: 14, fontWeight: '600' },
   stepDivider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: 64,
-  },
-  primaryBtn: {
-    marginHorizontal: Layout.screenPadding,
-    minHeight: 54,
-    borderRadius: Layout.chipRadius,
-    borderCurve: 'continuous',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginTop: 4,
-  },
-  primaryBtnText: { fontSize: 16, fontWeight: '700' },
-  footerNote: {
-    textAlign: 'center',
-    fontSize: 13,
-    marginHorizontal: Layout.screenPadding,
-    marginTop: -4,
+    marginLeft: 60,
   },
   profileCard: {
     marginHorizontal: Layout.screenPadding,
@@ -818,5 +907,22 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     marginLeft: Layout.screenPadding + 52,
+  },
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: Layout.screenPadding,
+    paddingVertical: 14,
+  },
+  identityLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  identityValue: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
