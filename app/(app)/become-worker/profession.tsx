@@ -5,9 +5,10 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { SearchField } from '@/components/ui/search-field';
 import { WORKER_TYPES } from '@/constants/worker-types';
-import { Layout } from '@/constants/theme';
+import { Layout, chipBorderWidth, getSurfaceStyle } from '@/constants/theme';
 import { useRequireWorkerIdentity } from '@/hooks/use-require-worker-identity';
 import { useWorkerOnboarding } from '@/hooks/use-worker-onboarding';
+import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +19,7 @@ import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 export default function ProfessionStep() {
   const router = useRouter();
   const theme = useTheme();
+  const scheme = useColorSchemeMode();
   useRequireWorkerIdentity();
   const { draft, updateDraft, loaded } = useWorkerOnboarding();
   const [search, setSearch] = useState('');
@@ -58,10 +60,6 @@ export default function ProfessionStep() {
           nextDisabled={!selectedId}
         />
       }>
-      <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
-        Choose the skill customers will search for.
-      </ThemedText>
-
       <View style={styles.searchWrap}>
         <SearchField
           value={search}
@@ -93,7 +91,10 @@ export default function ProfessionStep() {
                 {
                   backgroundColor: selected ? theme.accent : theme.surface,
                   borderColor: selected ? theme.accent : theme.border,
-                  opacity: pressed ? 0.9 : 1,
+                  borderWidth: chipBorderWidth(scheme, selected),
+                  ...(selected ? {} : getSurfaceStyle(scheme, 'soft')),
+                  opacity: pressed ? 0.92 : 1,
+                  transform: [{ scale: pressed ? 0.99 : 1 }],
                 },
               ]}>
               <View
@@ -137,28 +138,28 @@ export default function ProfessionStep() {
 }
 
 const styles = StyleSheet.create({
-  list: { flex: 1 },
-  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
-  searchWrap: { marginBottom: 4 },
-  listContent: { gap: 8, paddingBottom: 16 },
+  list: { flex: 1, width: '100%' },
+  searchWrap: { width: '100%' },
+  listContent: { gap: Layout.itemGap, paddingBottom: Layout.blockGap },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: Layout.chipRadius,
-    borderWidth: 1,
+    gap: Layout.blockGap,
+    paddingHorizontal: Layout.blockGap,
+    paddingVertical: 14,
+    borderRadius: Layout.fieldRadius,
     borderCurve: 'continuous',
-    minHeight: Layout.minTouch + 4,
+    minHeight: Layout.fieldHeight,
+    width: '100%',
   },
   iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowText: { flex: 1, fontSize: 15, fontWeight: '600' },
-  empty: { textAlign: 'center', paddingVertical: 24, fontSize: 14 },
+  rowText: { flex: 1, fontSize: 16, fontWeight: '600' },
+  empty: { textAlign: 'center', paddingVertical: Layout.sectionGap, fontSize: 15 },
 });

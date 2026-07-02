@@ -6,6 +6,7 @@ import { StackHeader } from '@/components/ui/stack-header';
 import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useFieldStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { getAuthErrorMessage } from '@/lib/auth-errors';
 import { Feather } from '@expo/vector-icons';
@@ -27,6 +28,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { signUp, signInWithGoogle, signInWithApple } = useAuth();
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
   const { contentBottom } = useScreenInsets();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -148,6 +150,7 @@ export default function RegisterScreen() {
                       borderColor: theme.border,
                       color: theme.text,
                     },
+                    fieldStyle,
                   ]}
                   value={fullName}
                   onChangeText={setFullName}
@@ -176,6 +179,7 @@ export default function RegisterScreen() {
                       borderColor: theme.border,
                       color: theme.text,
                     },
+                    fieldStyle,
                   ]}
                   value={email}
                   onChangeText={setEmail}
@@ -206,6 +210,7 @@ export default function RegisterScreen() {
                       borderColor: theme.border,
                       color: theme.text,
                     },
+                    fieldStyle,
                   ]}
                   value={password}
                   onChangeText={setPassword}
@@ -241,6 +246,7 @@ export default function RegisterScreen() {
                       borderColor: theme.border,
                       color: theme.text,
                     },
+                    fieldStyle,
                   ]}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -290,11 +296,11 @@ export default function RegisterScreen() {
 
           {/* Divider */}
           <View style={styles.dividerContainer}>
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, { backgroundColor: theme.divider }]} />
             <ThemedText style={[styles.dividerText, { color: theme.subtext }]}>
               Or continue with
             </ThemedText>
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, { backgroundColor: theme.divider }]} />
           </View>
 
           <SocialAuthSection
@@ -373,7 +379,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   input: {
-    borderWidth: 1,
     borderRadius: Layout.inputRadius,
     borderCurve: 'continuous',
     paddingHorizontal: 16,
@@ -428,7 +433,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
     gap: 12,
   },
   socialSquareText: {

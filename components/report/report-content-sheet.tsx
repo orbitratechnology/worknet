@@ -3,15 +3,21 @@ import { AppBottomSheet } from '@/components/ui/app-bottom-sheet';
 import { BottomSheetHeader } from '@/components/ui/bottom-sheet-header';
 import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { useFieldStyle, useSurfaceStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import {
   submitContentReport,
   type ReportTargetType,
 } from '@/lib/submit-report';
 import { getUserFacingMessage } from '@/lib/user-errors';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
-import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import React, {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -41,6 +47,8 @@ const REASONS = [
 export const ReportContentSheet = forwardRef<ReportContentSheetRef>(
   function ReportContentSheet(_props, ref) {
     const theme = useTheme();
+    const surfaceStyle = useSurfaceStyle('soft');
+    const fieldStyle = useFieldStyle();
     const { user } = useAuth();
     const sheetRef = useRef<BottomSheetModal>(null);
     const [targetType, setTargetType] = useState<ReportTargetType>('review');
@@ -91,17 +99,21 @@ export const ReportContentSheet = forwardRef<ReportContentSheetRef>(
     };
 
     return (
-      <AppBottomSheet ref={sheetRef} snapPoints={['55%', '75%']}>
-        <BottomSheetHeader title={title} />
-        <View style={styles.body}>
+      <AppBottomSheet ref={sheetRef} snapPoints={['55%', '75%']} scrollable>
+        <BottomSheetScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.body}
+          showsVerticalScrollIndicator
+          keyboardShouldPersistTaps='handled'>
+          <BottomSheetHeader title={title} />
           {submitted ? (
             <View style={styles.successBlock}>
               <ThemedText style={styles.successTitle} type='defaultSemiBold'>
                 Report received
               </ThemedText>
               <ThemedText style={{ color: theme.subtext, textAlign: 'center' }}>
-                Thanks for helping keep Worknet safe. We review reports within 24–48
-                hours. You can also email admin@orbitratech.net.
+                Thanks for helping keep Worknet safe. We review reports within
+                24–48 hours. You can also email admin@orbitratech.net.
               </ThemedText>
             </View>
           ) : (
@@ -118,7 +130,9 @@ export const ReportContentSheet = forwardRef<ReportContentSheetRef>(
                       {
                         borderColor: theme.border,
                         backgroundColor:
-                          selectedReason === reason ? theme.muted : theme.card,
+                          selectedReason === reason
+                            ? theme.accent + '22'
+                            : theme.muted,
                       },
                       pressed && { opacity: 0.85 },
                     ]}
@@ -148,12 +162,16 @@ export const ReportContentSheet = forwardRef<ReportContentSheetRef>(
                         color: theme.text,
                         backgroundColor: theme.card,
                       },
+                      fieldStyle,
                     ]}
                   />
                   <Pressable
                     style={({ pressed }) => [
                       styles.submitBtn,
-                      { backgroundColor: theme.text, opacity: pressed ? 0.9 : 1 },
+                      {
+                        backgroundColor: theme.text,
+                        opacity: pressed ? 0.9 : 1,
+                      },
                     ]}
                     onPress={() => submit(customReason)}
                     disabled={submitting || customReason.trim().length < 3}>
@@ -168,7 +186,10 @@ export const ReportContentSheet = forwardRef<ReportContentSheetRef>(
                   </Pressable>
                 </View>
               ) : submitting ? (
-                <ActivityIndicator style={{ marginTop: 16 }} color={theme.accent} />
+                <ActivityIndicator
+                  style={{ marginTop: 16 }}
+                  color={theme.accent}
+                />
               ) : null}
               {error ? (
                 <ThemedText style={{ color: theme.error, marginTop: 12 }}>
@@ -177,19 +198,19 @@ export const ReportContentSheet = forwardRef<ReportContentSheetRef>(
               ) : null}
             </>
           )}
-        </View>
+        </BottomSheetScrollView>
       </AppBottomSheet>
     );
   },
 );
 
 const styles = StyleSheet.create({
-  body: { padding: Layout.screenPadding, gap: 8 },
+  scroll: { flex: 1 },
+  body: { padding: Layout.screenPadding, gap: 8, paddingBottom: 40 },
   reasonList: { gap: 8 },
   reasonRow: {
     padding: 14,
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     minHeight: Layout.minTouch,
     justifyContent: 'center',
@@ -197,7 +218,6 @@ const styles = StyleSheet.create({
   customBlock: { gap: 12, marginTop: 8 },
   input: {
     minHeight: 96,
-    borderWidth: 1,
     borderRadius: Layout.cardRadius,
     borderCurve: 'continuous',
     padding: 12,

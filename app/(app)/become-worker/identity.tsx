@@ -1,16 +1,19 @@
 import {
   WizardFooter,
-  WizardHint,
   WizardScreen,
 } from '@/components/onboarding/wizard-shell';
 import { ThemedText } from '@/components/themed-text';
 import { FormSection, formFieldStyles } from '@/components/ui/form-section';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
+import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import {
   useSyncDraftField,
   useWorkerOnboarding,
 } from '@/hooks/use-worker-onboarding';
+import {
+  useFieldStyle,
+} from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { nextStepAfterIdentity } from '@/lib/user-identity';
 import { profilePhotoPath, uploadLocalFile } from '@/lib/storage';
@@ -26,6 +29,7 @@ import { Alert, StyleSheet, TextInput, View } from 'react-native';
 export default function IdentityStep() {
   const router = useRouter();
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
   const { user, userProfile } = useAuth();
   const { draft, updateDraft, loaded } = useWorkerOnboarding();
   const [name, setName] = useSyncDraftField('name');
@@ -83,11 +87,11 @@ export default function IdentityStep() {
 
   const next = async () => {
     if (!isValidName(name)) {
-      setError('Enter your full name (2–60 characters).');
+      setError('Please enter your full name (2 to 60 characters).');
       return;
     }
     if (!imageUri) {
-      setError('A profile photo is required.');
+      setError('Please add a profile photo to continue.');
       return;
     }
 
@@ -99,7 +103,7 @@ export default function IdentityStep() {
     <WizardScreen
       step={2}
       total={7}
-      title='Your identity'
+      title='Your name and photo'
       footer={
         <WizardFooter
           onBack={() => router.back()}
@@ -108,46 +112,65 @@ export default function IdentityStep() {
           loading={uploading}
         />
       }>
-      <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
-        This is how customers will recognize you in search results.
-      </ThemedText>
-
-      <HapticPressable onPress={pickImage} style={styles.photoWrap}>
-        {imageUri ? (
-          <View>
-            <Image source={{ uri: imageUri }} style={styles.photo} />
-            <View
-              style={[styles.photoBadge, { backgroundColor: theme.accent }]}>
-              <Feather name='camera' size={14} color={theme.onAccent} />
+      <FormSection
+        title='Profile photo'
+        hint='Required. Use a clear photo of your face. Profiles with photos get more contact requests.'
+        icon='camera'
+        variant='plain'>
+        <HapticPressable
+          onPress={pickImage}
+          style={({ pressed }) => [
+            styles.photoCard,
+            {
+              borderColor: imageUri ? theme.accent : theme.border,
+              backgroundColor: theme.surface,
+              opacity: pressed ? 0.92 : 1,
+              transform: [{ scale: pressed ? 0.99 : 1 }],
+              borderWidth: fieldStyle.borderWidth,
+              boxShadow: imageUri ? undefined : fieldStyle.boxShadow,
+            },
+          ]}>
+          {imageUri ? (
+            <View style={styles.photoRow}>
+              <Image source={{ uri: imageUri }} style={styles.photo} />
+              <View style={styles.photoMeta}>
+                <ThemedText style={styles.photoTitle}>Photo added</ThemedText>
+                <ThemedText style={[styles.photoAction, { color: theme.subtext }]}>
+                  Tap to change
+                </ThemedText>
+              </View>
+              <View
+                style={[styles.photoBadge, { backgroundColor: theme.accent }]}>
+                <Feather name='camera' size={16} color={theme.onAccent} />
+              </View>
             </View>
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.photoPlaceholder,
-              { borderColor: theme.border },
-            ]}>
-            <Feather name='camera' size={28} color={theme.subtext} />
-            <ThemedText style={{ color: theme.subtext, fontWeight: '600' }}>
-              Add photo
-            </ThemedText>
-            <ThemedText style={{ color: theme.subtext, fontSize: 12 }}>
-              Required
-            </ThemedText>
-          </View>
-        )}
-      </HapticPressable>
+          ) : (
+            <View style={styles.photoEmpty}>
+              <View
+                style={[styles.photoIcon, { backgroundColor: theme.muted }]}>
+                <Feather name='camera' size={24} color={theme.text} />
+              </View>
+              <ThemedText style={styles.photoTitle}>Add your photo</ThemedText>
+              <ThemedText style={[styles.photoAction, { color: theme.subtext }]}>
+                Tap here to open your gallery
+              </ThemedText>
+            </View>
+          )}
+        </HapticPressable>
+      </FormSection>
 
       <FormSection title='Full name' icon='user' variant='plain'>
-        <View style={formFieldStyles.group}>
+        <View style={formFieldStyles.groupLast}>
           <TextInput
             value={name}
             onChangeText={(t) => {
               setName(t);
               setError('');
             }}
-            placeholder='Your name as customers will see it'
+            placeholder='e.g. Kamal Perera'
             placeholderTextColor={theme.subtext}
+            autoCapitalize='words'
+            accessibilityLabel='Full name'
             style={[
               formFieldStyles.input,
               {
@@ -155,6 +178,7 @@ export default function IdentityStep() {
                 borderColor: error ? theme.error : theme.border,
                 backgroundColor: theme.surface,
               },
+              fieldStyle,
             ]}
           />
           {error ? (
@@ -165,38 +189,55 @@ export default function IdentityStep() {
           ) : null}
         </View>
       </FormSection>
-
-      <WizardHint>
-        Use a clear, friendly photo of your face. Profiles with photos get
-        more contact requests.
-      </WizardHint>
     </WizardScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 20 },
-  photoWrap: { alignSelf: 'center', marginBottom: 24 },
-  photo: { width: 120, height: 120, borderRadius: 60 },
-  photoBadge: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoPlaceholder: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 2,
-    borderStyle: 'dashed',
+  photoCard: {
+    width: '100%',
+    borderRadius: Layout.fieldRadius,
     borderCurve: 'continuous',
+    overflow: 'hidden',
+    minHeight: Layout.fieldHeight + 32,
+    justifyContent: 'center',
+  },
+  photoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.blockGap,
+    padding: Layout.blockGap,
+    width: '100%',
+  },
+  photo: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+  },
+  photoBadge: {
+    marginLeft: 'auto',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
   },
+  photoEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Layout.sectionGap,
+    gap: 8,
+    width: '100%',
+  },
+  photoIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  photoMeta: { flex: 1, gap: 4 },
+  photoTitle: { fontSize: 16, fontWeight: '700' },
+  photoAction: { fontSize: 14, lineHeight: 18 },
 });

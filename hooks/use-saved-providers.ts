@@ -1,5 +1,6 @@
 import { useAuth } from '@/context/auth';
 import { db } from '@/lib/firebase';
+import { logger } from '@/lib/logger';
 import { SavedProvidersDoc } from '@/types/database';
 import {
   arrayRemove,
@@ -24,11 +25,24 @@ export function useSavedProviders() {
     }
 
     const ref = doc(db, 'saved_providers', user.uid);
-    const unsub = onSnapshot(ref, (snap) => {
-      const data = snap.data() as SavedProvidersDoc | undefined;
-      setSavedIds(data?.providerIds ?? []);
-      setLoading(false);
-    });
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap?.exists()) {
+          setSavedIds([]);
+          setLoading(false);
+          return;
+        }
+        const data = snap.data() as SavedProvidersDoc | undefined;
+        setSavedIds(data?.providerIds ?? []);
+        setLoading(false);
+      },
+      (error) => {
+        logger.warn('Saved providers listener error', error);
+        setSavedIds([]);
+        setLoading(false);
+      },
+    );
 
     return unsub;
   }, [user?.uid]);

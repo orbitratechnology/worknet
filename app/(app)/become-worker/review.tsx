@@ -1,6 +1,5 @@
 import {
   WizardFooter,
-  WizardHint,
   WizardScreen,
 } from '@/components/onboarding/wizard-shell';
 import { ThemedText } from '@/components/themed-text';
@@ -11,6 +10,7 @@ import {
   profileCompleteness,
   useWorkerOnboarding,
 } from '@/hooks/use-worker-onboarding';
+import { useSurfaceStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { formatLanguagesLabel } from '@/constants/worker-languages';
 import { publishWorkerProfile } from '@/lib/publish-worker';
@@ -25,6 +25,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 export default function ReviewStep() {
   const router = useRouter();
   const theme = useTheme();
+  const surfaceStyle = useSurfaceStyle('soft');
   const { user, refreshUser, userProfile } = useAuth();
   useRequireWorkerIdentity();
   const { draft } = useWorkerOnboarding();
@@ -59,7 +60,12 @@ export default function ReviewStep() {
           loading={loading}
         />
       }>
-      <View style={styles.completenessBlock}>
+      <View
+        style={[
+          styles.completenessBlock,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+          surfaceStyle,
+        ]}>
         <View style={styles.completenessHeader}>
           <ThemedText style={styles.completenessTitle} type='defaultSemiBold'>
             Profile strength
@@ -72,7 +78,7 @@ export default function ReviewStep() {
             {completeness}%
           </ThemedText>
         </View>
-        <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+        <View style={[styles.progressTrack, { backgroundColor: theme.divider }]}>
           <View
             style={[
               styles.progressFill,
@@ -86,7 +92,12 @@ export default function ReviewStep() {
         </View>
       </View>
 
-      <View style={styles.profileRow}>
+      <View
+        style={[
+          styles.profileRow,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+          surfaceStyle,
+        ]}>
         {draft.imageUri ? (
           <Image source={{ uri: draft.imageUri }} style={styles.avatar} />
         ) : null}
@@ -106,7 +117,7 @@ export default function ReviewStep() {
         </View>
       </View>
 
-      <View style={[styles.detailsList, { borderColor: theme.border }]}>
+      <View style={[styles.detailsList, { borderColor: theme.border }, surfaceStyle]}>
         <ReviewRow
           label='Phone'
           value={userProfile?.phoneNumber ?? ''}
@@ -140,12 +151,16 @@ export default function ReviewStep() {
         {draft.emergencyAvailability ? (
           <ReviewRow label='Emergency' value='Available' />
         ) : null}
+        {draft.socialLinks.tiktok ? (
+          <ReviewRow label='TikTok' value={draft.socialLinks.tiktok} />
+        ) : null}
+        {draft.socialLinks.instagram ? (
+          <ReviewRow label='Instagram' value={draft.socialLinks.instagram} />
+        ) : null}
+        {draft.socialLinks.facebook ? (
+          <ReviewRow label='Facebook' value={draft.socialLinks.facebook} />
+        ) : null}
       </View>
-
-      <WizardHint>
-        Your profile publishes visible in search. Toggle availability anytime on
-        your Worker dashboard.
-      </WizardHint>
     </WizardScreen>
   );
 }
@@ -161,7 +176,7 @@ function ReviewRow({
 }) {
   const theme = useTheme();
   return (
-    <View style={[styles.reviewRow, { borderColor: theme.border }]}>
+    <View style={[styles.reviewRow, { borderBottomColor: theme.divider }]}>
       <ThemedText style={[styles.reviewLabel, { color: theme.subtext }]}>
         {label}
       </ThemedText>
@@ -178,6 +193,10 @@ function ReviewRow({
 const styles = StyleSheet.create({
   completenessBlock: {
     gap: 10,
+    padding: Layout.blockGap,
+    borderRadius: Layout.fieldRadius,
+    borderCurve: 'continuous',
+    width: '100%',
   },
   completenessHeader: {
     flexDirection: 'row',
@@ -194,10 +213,14 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 3 },
   profileRow: {
     flexDirection: 'row',
-    gap: 14,
+    gap: Layout.blockGap,
     alignItems: 'center',
+    padding: Layout.blockGap,
+    borderRadius: Layout.fieldRadius,
+    borderCurve: 'continuous',
+    width: '100%',
   },
-  avatar: { width: 72, height: 72, borderRadius: 36 },
+  avatar: { width: 64, height: 64, borderRadius: 32 },
   name: { fontSize: 18 },
   locationRow: {
     flexDirection: 'row',
@@ -206,13 +229,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   detailsList: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: Layout.fieldRadius,
+    borderCurve: 'continuous',
+    width: '100%',
+    overflow: 'hidden',
   },
   reviewRow: {
+    paddingHorizontal: Layout.blockGap,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 4,
+    minHeight: Layout.minTouch,
+    justifyContent: 'center',
   },
   reviewLabel: {
     fontSize: 12,

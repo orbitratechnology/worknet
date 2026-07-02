@@ -4,6 +4,10 @@ import { ScreenShell } from '@/components/ui/screen-shell';
 import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import {
+  useFieldStyle,
+  useSurfaceStyle,
+} from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { deleteUserAccount } from '@/lib/account-deletion';
 import { getUserFacingMessage } from '@/lib/user-errors';
@@ -24,6 +28,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const theme = useTheme();
+  const surfaceStyle = useSurfaceStyle();
+  const fieldStyle = useFieldStyle();
   const { contentBottom } = useScreenInsets();
   const [loading, setLoading] = useState(false);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
@@ -102,6 +108,7 @@ export default function SettingsScreen() {
           style={[
             styles.section,
             { backgroundColor: theme.card, borderColor: theme.error + '40' },
+            surfaceStyle,
           ]}>
           <Pressable
             style={({ pressed }) => [
@@ -136,6 +143,7 @@ export default function SettingsScreen() {
             style={[
               styles.modalCard,
               { backgroundColor: theme.card, borderColor: theme.border },
+              surfaceStyle,
             ]}>
             <ThemedText type='defaultSemiBold' style={styles.modalTitle}>
               Confirm your password
@@ -156,6 +164,7 @@ export default function SettingsScreen() {
                   color: theme.text,
                   backgroundColor: theme.background,
                 },
+                fieldStyle,
               ]}
             />
             <View style={styles.modalActions}>
@@ -197,7 +206,6 @@ const styles = StyleSheet.create({
   section: {
     borderRadius: Layout.cardRadius,
     overflow: 'hidden',
-    borderWidth: 1,
     borderCurve: 'continuous',
   },
   row: {
@@ -226,14 +234,12 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     padding: 20,
     gap: 8,
   },
   modalTitle: { fontSize: 18 },
   passwordInput: {
-    borderWidth: 1,
     borderRadius: Layout.chipRadius,
     borderCurve: 'continuous',
     paddingHorizontal: 14,

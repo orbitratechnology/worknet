@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/theme';
+import { Colors, getSurfaceStyle, surfaceBorderWidth } from '@/constants/theme';
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
@@ -12,12 +12,18 @@ interface AppBottomSheetProps {
   snapPoints?: string[];
   index?: number;
   enableDynamicSizing?: boolean;
+  /** Skip BottomSheetView wrapper — required for BottomSheetFlatList/ScrollView. */
+  scrollable?: boolean;
 }
 
 export const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(
-  ({ children, snapPoints, index = 0, enableDynamicSizing }, ref) => {
+  (
+    { children, snapPoints, index = 0, enableDynamicSizing, scrollable },
+    ref,
+  ) => {
     const colorScheme = useColorScheme() ?? 'light';
-    const theme = Colors[colorScheme];
+    const scheme = colorScheme === 'dark' ? 'dark' : 'light';
+    const theme = Colors[scheme];
     const defaultSnapPoints = useMemo(() => ['50%', '75%', '90%'], []);
     const finalSnapPoints = snapPoints ?? defaultSnapPoints;
 
@@ -42,20 +48,25 @@ export const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={[
           styles.indicator,
-          { backgroundColor: theme.border },
+          { backgroundColor: theme.divider },
         ]}
         backgroundStyle={[
           styles.background,
           {
             backgroundColor: theme.card,
-            borderColor: theme.border,
+            borderTopWidth: surfaceBorderWidth(scheme),
+            ...getSurfaceStyle(scheme, 'elevated'),
           },
         ]}>
-        <BottomSheetView style={styles.content}>
-          <View collapsable={false} style={styles.inner}>
-            {children}
-          </View>
-        </BottomSheetView>
+        {scrollable ? (
+          children
+        ) : (
+          <BottomSheetView style={styles.content}>
+            <View collapsable={false} style={styles.inner}>
+              {children}
+            </View>
+          </BottomSheetView>
+        )}
       </BottomSheetModal>
     );
   },
@@ -68,7 +79,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderCurve: 'continuous',
-    borderTopWidth: StyleSheet.hairlineWidth,
   },
   indicator: {
     width: 40,

@@ -83,11 +83,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onSnapshot(
       userDocRef,
       (snapshot) => {
-        if (snapshot.exists()) {
-          setUserProfile(snapshot.data() as UserProfile);
-        } else {
+        if (!snapshot?.exists()) {
           setUserProfile(null);
+          setLoading(false);
+          return;
         }
+        setUserProfile(snapshot.data() as UserProfile);
         setLoading(false);
       },
       (error) => {

@@ -3,17 +3,22 @@ import { ThemedView } from '@/components/themed-view';
 import { AppBottomSheet } from '@/components/ui/app-bottom-sheet';
 import { MapFilterSheet } from '@/components/ui/map-filter-sheet';
 import { PROBLEMS } from '@/constants/problems';
-import { elevatedShadow, Layout } from '@/constants/theme';
+import { Layout, chipBorderWidth, getSurfaceStyle } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
 import { useLocation } from '@/context/location';
+import { useSearchLocation } from '@/context/search-location';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import {
+  useColorSchemeMode,
+  useSurfaceStyle,
+} from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { calculateDistance, getNearbyProviders } from '@/lib/geo';
 import { ServiceProvider } from '@/types/database';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -33,13 +38,28 @@ export default function MapScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const longitudeDelta = LATITUDE_DELTA * (width / height);
-  const { problem: initialProblem } = useLocalSearchParams<{
+  const { problem: initialProblem, pickSearchOrigin } = useLocalSearchParams<{
     problem: string;
+    pickSearchOrigin: string;
   }>();
-  const colorScheme = useColorScheme() ?? 'light';
+  const isPickingOrigin = pickSearchOrigin === '1';
+  const scheme = useColorSchemeMode();
+  const surfaceStyle = useSurfaceStyle();
+  const elevatedSurface = useSurfaceStyle('elevated');
+  const chipSurface = (selected: boolean) => ({
+    ...(selected ? {} : getSurfaceStyle(scheme, 'soft')),
+    borderWidth: chipBorderWidth(scheme, selected),
+  });
   const theme = useTheme();
   const { top, contentBottom } = useScreenInsets({ tabBar: true });
-  const { coords, country, refreshLocation } = useLocation();
+  const { refreshLocation } = useLocation();
+  const {
+    coords,
+    radiusKm,
+    setRadiusKm,
+    searchOrigin,
+    setSearchOrigin,
+  } = useSearchLocation();
   const mapRef = useRef<MapView>(null);
   const filterBottomSheetRef = useRef<BottomSheetModal>(null);
 
@@ -56,7 +76,6 @@ export default function MapScreen() {
   const [selectedWorkerType, setSelectedWorkerType] = useState<string | null>(
     null,
   );
-  const [distance, setDistance] = useState(25);
 
   const [mapRegion, setMapRegion] = useState({
     latitude: coords?.latitude || 6.9271,
@@ -73,7 +92,7 @@ export default function MapScreen() {
     }
   }, [initialProblem]);
 
-  // Update region when location changes initially
+  // Update region when search origin changes
   useEffect(() => {
     if (coords) {
       const newRegion = {
@@ -84,13 +103,12 @@ export default function MapScreen() {
       };
       setMapRegion(newRegion);
       mapRef.current?.animateToRegion(newRegion, 1000);
-      fetchProviders(coords.latitude, coords.longitude, distance);
+      fetchProviders(coords.latitude, coords.longitude, radiusKm);
     } else {
-      // Fetch providers for default region if coords are not available yet
-      fetchProviders(mapRegion.latitude, mapRegion.longitude, distance);
+      fetchProviders(mapRegion.latitude, mapRegion.longitude, radiusKm);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coords]);
+  }, [coords, radiusKm]);
 
   const fetchProviders = async (lat: number, lng: number, radius: number) => {
     setLoading(true);
@@ -159,17 +177,22 @@ export default function MapScreen() {
     applyFilters(providers, null, newType);
   };
 
-  const onRegionChangeComplete = (region: any) => {
-    setMapRegion(region);
+  const onRegionChangeComplete = (region: {
+    latitude: number;
+    longitude: number;
+  }) => {
+    setMapRegion((prev) => ({ ...prev, ...region }));
 
-    if (coords) {
+    const originLat = searchOrigin?.latitude ?? coords?.latitude;
+    const originLng = searchOrigin?.longitude ?? coords?.longitude;
+    if (originLat != null && originLng != null) {
       const dist = calculateDistance(
-        coords.latitude,
-        coords.longitude,
+        originLat,
+        originLng,
         region.latitude,
         region.longitude,
       );
-      if (dist > distance / 10 || dist > 2) {
+      if (dist > radiusKm / 10 || dist > 2) {
         setShowSearchHere(true);
       } else {
         setShowSearchHere(false);
@@ -177,9 +200,33 @@ export default function MapScreen() {
     }
   };
 
-  const handleSearchHere = () => {
+  const handleSearchHere = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    fetchProviders(mapRegion.latitude, mapRegion.longitude, distance);
+    let label = 'Map area';
+    try {
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: mapRegion.latitude,
+        longitude: mapRegion.longitude,
+      });
+      label =
+        address?.city ||
+        address?.subregion ||
+        address?.district ||
+        'Map area';
+    } catch {
+      // keep default label
+    }
+
+    setSearchOrigin({
+      latitude: mapRegion.latitude,
+      longitude: mapRegion.longitude,
+      label,
+      source: 'map',
+    });
+
+    if (isPickingOrigin) {
+      router.setParams({ pickSearchOrigin: undefined });
+    }
   };
 
   const handleCenterAction = () => {
@@ -192,7 +239,7 @@ export default function MapScreen() {
         longitudeDelta: longitudeDelta,
       };
       mapRef.current?.animateToRegion(newRegion, 1000);
-      fetchProviders(coords.latitude, coords.longitude, distance);
+      fetchProviders(coords.latitude, coords.longitude, radiusKm);
     } else {
       refreshLocation();
     }
@@ -218,7 +265,7 @@ export default function MapScreen() {
         style={styles.map}
         initialRegion={mapRegion}
         onRegionChangeComplete={onRegionChangeComplete}
-        customMapStyle={colorScheme === 'dark' ? darkMapStyle : []}
+        customMapStyle={scheme === 'dark' ? darkMapStyle : []}
         showsUserLocation
         showsMyLocationButton={false}>
         {filteredProviders.map((provider) => {
@@ -275,6 +322,7 @@ export default function MapScreen() {
                   style={[
                     styles.calloutContainer,
                     { backgroundColor: theme.card, borderColor: theme.border },
+                    surfaceStyle,
                   ]}>
                   <ThemedText style={styles.calloutName} type='defaultSemiBold'>
                     {provider.name}
@@ -330,14 +378,15 @@ export default function MapScreen() {
                   backgroundColor: theme.card,
                   borderColor: theme.border,
                 },
+                chipSurface(false),
               ]}>
               <Feather name='sliders' size={16} color={theme.accent} />
               <ThemedText style={[styles.categoryText, { color: theme.text }]}>
-                Filters {distance}km
+                Filters {radiusKm}km
               </ThemedText>
             </TouchableOpacity>
 
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, { backgroundColor: theme.divider }]} />
 
             {commonWorkerTypes.map((type, index) => (
               <View key={type.id}>
@@ -353,6 +402,7 @@ export default function MapScreen() {
                           : theme.card,
                       borderColor: theme.border,
                     },
+                    chipSurface(selectedWorkerType === type.name),
                   ]}>
                   <MaterialCommunityIcons
                     name={type.icon as any}
@@ -381,6 +431,21 @@ export default function MapScreen() {
           </ScrollView>
         </View>
 
+        {/* Pick location hint */}
+        {isPickingOrigin ? (
+          <View
+            style={[
+              styles.pickHint,
+              { backgroundColor: theme.card, borderColor: theme.border },
+              surfaceStyle,
+            ]}>
+            <Feather name='info' size={14} color={theme.accent} />
+            <ThemedText style={[styles.pickHintText, { color: theme.text }]}>
+              Move the map, then tap Search this area
+            </ThemedText>
+          </View>
+        ) : null}
+
         {/* Search Here Button */}
         {showSearchHere && (
           <View>
@@ -395,7 +460,7 @@ export default function MapScreen() {
                   <Feather name='refresh-cw' size={14} color={theme.onAccent} />
                   <ThemedText
                     style={[styles.searchHereText, { color: theme.onAccent }]}>
-                    Search this area
+                    {isPickingOrigin ? 'Set search area' : 'Search this area'}
                   </ThemedText>
                 </>
               )}
@@ -411,8 +476,8 @@ export default function MapScreen() {
               {
                 backgroundColor: theme.card,
                 borderColor: theme.border,
-                boxShadow: elevatedShadow(colorScheme),
               },
+              elevatedSurface,
             ]}
             onPress={handleCenterAction}>
             <MaterialCommunityIcons
@@ -424,10 +489,12 @@ export default function MapScreen() {
         </View>
       </View>
 
-      <AppBottomSheet ref={filterBottomSheetRef} snapPoints={['65%']}>
+      <AppBottomSheet ref={filterBottomSheetRef} snapPoints={['85%']} scrollable>
         <MapFilterSheet
           selectedProblem={selectedProblem}
           selectedWorkerType={selectedWorkerType}
+          distanceKm={radiusKm}
+          onDistanceChange={setRadiusKm}
           onSelectProblem={(slug) => {
             handleProblemSelect(slug || '');
           }}
@@ -510,7 +577,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Layout.chipRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     gap: 8,
   },
@@ -524,8 +590,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Layout.chipRadius,
-    borderWidth: 1,
-    borderCurve: 'continuous',
     gap: 8,
   },
   divider: {
@@ -545,6 +609,21 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 8,
     borderCurve: 'continuous',
+  },
+  pickHint: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: Layout.chipRadius,
+    borderCurve: 'continuous',
+    marginTop: 4,
+  },
+  pickHintText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   searchHereText: {
     fontSize: 13,
@@ -568,7 +647,6 @@ const styles = StyleSheet.create({
     width: 180,
     padding: 12,
     borderRadius: 16,
-    borderWidth: 1,
     alignItems: 'center',
   },
   calloutName: {
@@ -612,7 +690,6 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
     borderCurve: 'continuous',
   },
 });

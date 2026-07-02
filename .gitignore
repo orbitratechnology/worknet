@@ -30,7 +30,6 @@ __generated__/
 
 # EAS
 .eas/
-.easignore
 
 # Android
 android/

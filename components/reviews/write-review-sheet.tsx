@@ -3,11 +3,12 @@ import { AppBottomSheet } from '@/components/ui/app-bottom-sheet';
 import { BottomSheetHeader } from '@/components/ui/bottom-sheet-header';
 import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
+import { useFieldStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { db } from '@/lib/firebase';
 import { getUserFacingMessage } from '@/lib/user-errors';
 import { Feather } from '@expo/vector-icons';
-import { BottomSheetModal } from '@gorhom/bottom-sheet';
+import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import {
   addDoc,
@@ -39,6 +40,7 @@ export const WriteReviewSheet = forwardRef<
   WriteReviewSheetProps
 >(function WriteReviewSheet({ providerId, providerName, onSubmitted }, ref) {
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
   const { user, userProfile } = useAuth();
   const sheetRef = useRef<BottomSheetModal>(null);
   const [rating, setRating] = useState(5);
@@ -79,8 +81,12 @@ export const WriteReviewSheet = forwardRef<
   };
 
   return (
-    <AppBottomSheet ref={sheetRef} snapPoints={['58%']}>
-      <View style={styles.container}>
+    <AppBottomSheet ref={sheetRef} snapPoints={['58%']} scrollable>
+      <BottomSheetScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps='handled'
+        showsVerticalScrollIndicator>
         <BottomSheetHeader title={`Review ${providerName}`} />
 
         <View style={styles.stars}>
@@ -128,6 +134,7 @@ export const WriteReviewSheet = forwardRef<
               borderColor: theme.border,
               backgroundColor: theme.surface,
             },
+            fieldStyle,
           ]}
         />
 
@@ -150,20 +157,24 @@ export const WriteReviewSheet = forwardRef<
           {submitting ? (
             <ActivityIndicator color={theme.onAccent} />
           ) : (
-            <ThemedText style={[styles.submitText, { color: theme.onAccent }]}>
-              Submit Review
-            </ThemedText>
+            <>
+              <Feather name='star' size={18} color={theme.onAccent} />
+              <ThemedText style={[styles.submitText, { color: theme.onAccent }]}>
+                Submit Review
+              </ThemedText>
+            </>
           )}
         </Pressable>
-      </View>
+      </BottomSheetScrollView>
     </AppBottomSheet>
   );
 });
 
 const styles = StyleSheet.create({
+  scroll: { flex: 1 },
   container: {
     paddingHorizontal: Layout.screenPadding,
-    paddingBottom: Layout.screenPadding,
+    paddingBottom: Layout.screenPadding + 24,
   },
   stars: {
     flexDirection: 'row',
@@ -180,7 +191,6 @@ const styles = StyleSheet.create({
   },
   input: {
     minHeight: 100,
-    borderWidth: 1,
     borderRadius: Layout.cardRadius,
     borderCurve: 'continuous',
     padding: 14,
@@ -190,10 +200,13 @@ const styles = StyleSheet.create({
   },
   error: { fontSize: 13, marginBottom: 8 },
   submitBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
     paddingVertical: 16,
     borderRadius: Layout.chipRadius,
     borderCurve: 'continuous',
-    alignItems: 'center',
     minHeight: Layout.minTouch + 8,
   },
   submitText: { fontSize: 16, fontWeight: '700' },

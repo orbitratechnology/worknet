@@ -3,7 +3,12 @@ import { WORKER_TYPES } from '@/constants/worker-types';
 import { ExperienceYearsRange, ServiceProvider } from '@/types/database';
 import { calculateDistance } from '@/lib/geo';
 
-export type MatchSortMode = 'best' | 'nearest' | 'topRated' | 'available';
+export type MatchSortMode =
+  | 'best'
+  | 'nearest'
+  | 'topRated'
+  | 'available'
+  | 'newest';
 
 export interface MatchContext {
   coords?: { latitude: number; longitude: number } | null;
@@ -11,9 +16,18 @@ export interface MatchContext {
   professionId?: string | null;
   searchText?: string;
   onlyAvailable?: boolean;
+  emergencyOnly?: boolean;
   minRating?: number;
   maxDistanceKm?: number;
   sortMode?: MatchSortMode;
+}
+
+function createdAtMs(createdAt: unknown): number {
+  if (!createdAt) return 0;
+  const ts = createdAt as { toMillis?: () => number; seconds?: number };
+  if (typeof ts.toMillis === 'function') return ts.toMillis();
+  if (typeof ts.seconds === 'number') return ts.seconds * 1000;
+  return 0;
 }
 
 export interface MatchedProvider extends ServiceProvider {
@@ -131,6 +145,10 @@ export function filterProviders(
       return false;
     }
 
+    if (context.emergencyOnly && !provider.emergencyAvailability) {
+      return false;
+    }
+
     if (problemIds.length > 0) {
       const matchesProfession =
         problemIds.includes(provider.primaryProfessionId) ||
@@ -220,6 +238,12 @@ export function matchProviders(
       const aOnline = a.availabilityStatus === 'online' ? 1 : 0;
       const bOnline = b.availabilityStatus === 'online' ? 1 : 0;
       return bOnline - aOnline || b.score - a.score;
+    }
+    if (sortMode === 'newest') {
+      return (
+        createdAtMs(b.createdAt) - createdAtMs(a.createdAt) ||
+        b.score - a.score
+      );
     }
     return b.score - a.score || (a.distance ?? 999) - (b.distance ?? 999);
   });

@@ -1,10 +1,14 @@
 import { ThemedText } from '@/components/themed-text';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { ScreenShell } from '@/components/ui/screen-shell';
-import { Layout, cardShadow } from '@/constants/theme';
+import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useSavedProviders } from '@/hooks/use-saved-providers';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import {
+  useFieldStyle,
+  useSurfaceStyle,
+} from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -16,7 +20,6 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  useColorScheme,
 } from 'react-native';
 import { LEGAL_URLS } from '@/lib/legal-urls';
 import * as WebBrowser from 'expo-web-browser';
@@ -36,6 +39,7 @@ const SettingRow = React.memo(function SettingRow({
   destructive?: boolean;
   badge?: string;
 }) {
+  const softSurface = useSurfaceStyle('soft');
   const color = destructive ? theme.error : theme.text;
   return (
     <Pressable
@@ -53,6 +57,7 @@ const SettingRow = React.memo(function SettingRow({
               backgroundColor: destructive ? theme.error + '10' : theme.surface,
               borderColor: destructive ? theme.error + '25' : theme.border,
             },
+            softSurface,
           ]}>
           <Feather
             name={icon}
@@ -85,8 +90,8 @@ export default function ProfileScreen() {
   const { signOut, user, userProfile } = useAuth();
   const { savedIds } = useSavedProviders();
   const theme = useTheme();
-  const colorScheme = useColorScheme();
-  const scheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const surfaceStyle = useSurfaceStyle();
+  const fieldStyle = useFieldStyle();
   const { contentBottom } = useScreenInsets({ tabBar: true });
 
   const displayName = userProfile?.name || user?.displayName || 'User';
@@ -117,8 +122,8 @@ export default function ProfileScreen() {
               {
                 backgroundColor: theme.card,
                 borderColor: theme.border,
-                boxShadow: cardShadow(scheme),
               },
+              surfaceStyle,
             ]}>
             <View style={[styles.guestIconWrap, { backgroundColor: theme.muted }]}>
               <Feather name='user' size={32} color={theme.text} />
@@ -185,7 +190,11 @@ export default function ProfileScreen() {
               onPress={() => router.push('/register')}
               style={({ pressed }) => [
                 styles.guestSecondaryBtn,
-                { borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
+                {
+                  borderColor: theme.border,
+                  opacity: pressed ? 0.85 : 1,
+                },
+                fieldStyle,
               ]}>
               <ThemedText style={styles.guestSecondaryBtnText}>
                 Create Account
@@ -200,6 +209,7 @@ export default function ProfileScreen() {
             style={[
               styles.cardGroup,
               { backgroundColor: theme.card, borderColor: theme.border },
+              surfaceStyle,
             ]}>
             <SettingRow
               icon='help-circle'
@@ -207,14 +217,14 @@ export default function ProfileScreen() {
               theme={theme}
               onPress={() => Linking.openURL('mailto:admin@orbitratech.net')}
             />
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, { backgroundColor: theme.divider }]} />
             <SettingRow
               icon='file-text'
               title='Privacy Policy'
               theme={theme}
               onPress={() => WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
             />
-            <View style={[styles.divider, { backgroundColor: theme.border }]} />
+            <View style={[styles.divider, { backgroundColor: theme.divider }]} />
             <SettingRow
               icon='book'
               title='Terms of Service'
@@ -245,8 +255,8 @@ export default function ProfileScreen() {
             {
               backgroundColor: theme.card,
               borderColor: theme.border,
-              boxShadow: cardShadow(scheme),
             },
+            surfaceStyle,
             pressed && { opacity: 0.95 },
           ]}>
           <View style={styles.profileHeaderLeft}>
@@ -275,6 +285,7 @@ export default function ProfileScreen() {
           style={[
             styles.cardGroup,
             { backgroundColor: theme.card, borderColor: theme.border },
+            surfaceStyle,
           ]}>
           <SettingRow
             icon='heart'
@@ -293,6 +304,7 @@ export default function ProfileScreen() {
           style={[
             styles.cardGroup,
             { backgroundColor: theme.card, borderColor: theme.border },
+            surfaceStyle,
           ]}>
           <SettingRow
             icon='settings'
@@ -300,21 +312,21 @@ export default function ProfileScreen() {
             theme={theme}
             onPress={() => router.push('/(app)/settings')}
           />
-          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          <View style={[styles.divider, { backgroundColor: theme.divider }]} />
           <SettingRow
             icon='help-circle'
             title='Help & Support'
             theme={theme}
             onPress={() => Linking.openURL('mailto:admin@orbitratech.net')}
           />
-          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          <View style={[styles.divider, { backgroundColor: theme.divider }]} />
           <SettingRow
             icon='file-text'
             title='Privacy Policy'
             theme={theme}
             onPress={() => WebBrowser.openBrowserAsync(LEGAL_URLS.privacy)}
           />
-          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          <View style={[styles.divider, { backgroundColor: theme.divider }]} />
           <SettingRow
             icon='book'
             title='Terms of Service'
@@ -332,6 +344,7 @@ export default function ProfileScreen() {
               borderColor: theme.border,
               marginTop: 8,
             },
+            surfaceStyle,
           ]}>
           <SettingRow
             icon='log-out'
@@ -358,7 +371,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
     borderCurve: 'continuous',
   },
   profileHeaderLeft: {
@@ -402,7 +414,6 @@ const styles = StyleSheet.create({
     marginBottom: Layout.sectionGap,
     borderRadius: Layout.cardRadius,
     overflow: 'hidden',
-    borderWidth: 1,
     borderCurve: 'continuous',
   },
   settingRow: {
@@ -423,7 +434,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
     borderCurve: 'continuous',
   },
   settingTitle: {
@@ -444,7 +454,6 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginLeft: 66,
-    opacity: 0.5,
   },
   // Guest state styling
   guestCard: {
@@ -453,7 +462,6 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: Layout.cardRadius,
     alignItems: 'center',
-    borderWidth: 1,
     borderCurve: 'continuous',
     gap: 16,
   },
@@ -515,7 +523,6 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: Layout.chipRadius,
     alignItems: 'center',
-    borderWidth: 1,
   },
   guestSecondaryBtnText: {
     fontSize: 16,

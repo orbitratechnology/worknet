@@ -69,7 +69,10 @@ export function useMatchedProviders(options: UseMatchedProvidersOptions) {
       }
 
       const matched = matchProviders(raw, options);
-      setProviders(matched);
+      const resultLimit = options.fetchLimit;
+      setProviders(
+        resultLimit != null ? matched.slice(0, resultLimit) : matched,
+      );
     } catch (e) {
       console.error('useMatchedProviders error', e);
       setError('Could not load workers. Pull to refresh.');
@@ -84,6 +87,7 @@ export function useMatchedProviders(options: UseMatchedProvidersOptions) {
     options.professionId,
     options.searchText,
     options.onlyAvailable,
+    options.emergencyOnly,
     options.minRating,
     options.sortMode,
     options.fetchLimit,

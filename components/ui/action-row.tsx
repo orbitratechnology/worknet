@@ -1,4 +1,5 @@
 import { Layout } from '@/constants/theme';
+import { useColorSchemeMode, useFieldStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
@@ -23,6 +24,8 @@ export const ActionRow = React.memo(function ActionRow({
   badge,
 }: ActionRowProps) {
   const theme = useTheme();
+  const scheme = useColorSchemeMode();
+  const fieldStyle = useFieldStyle();
   const color = destructive ? theme.error : theme.text;
 
   return (
@@ -35,9 +38,12 @@ export const ActionRow = React.memo(function ActionRow({
       <View
         style={[
           styles.iconBox,
+          fieldStyle,
           {
             backgroundColor: destructive ? theme.error + '12' : theme.muted,
-            borderColor: destructive ? theme.error + '25' : theme.border,
+            ...(destructive && scheme === 'dark'
+              ? { borderColor: theme.error + '25' }
+              : {}),
           },
         ]}>
         <Feather
@@ -84,7 +90,6 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 12,
     borderCurve: 'continuous',
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

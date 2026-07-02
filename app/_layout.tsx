@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from '@/context/auth';
 import { AuthGateProvider } from '@/context/auth-gate';
 import { getStatusBarFallback } from '@/lib/safe-area';
 import { LocationProvider } from '@/context/location';
+import { SearchLocationProvider } from '@/context/search-location';
 import SplashScreenController from './splash';
 
 export default function RootLayout() {
@@ -28,22 +29,26 @@ export default function RootLayout() {
           left: 0,
           right: 0,
         }}>
-        <BottomSheetModalProvider>
-          <AuthProvider>
-            <AuthGateProvider>
-            <LocationProvider>
-              <ThemeProvider
-                value={
-                  colorScheme === 'dark' ? WorknetDarkTheme : WorknetLightTheme
-                }>
-                <SplashScreenController />
-                <RootNavigator />
-                <StatusBar style='auto' />
-              </ThemeProvider>
-            </LocationProvider>
-            </AuthGateProvider>
-          </AuthProvider>
-        </BottomSheetModalProvider>
+        <AuthProvider>
+          <LocationProvider>
+            <SearchLocationProvider>
+              <BottomSheetModalProvider>
+                <AuthGateProvider>
+                  <ThemeProvider
+                    value={
+                      colorScheme === 'dark'
+                        ? WorknetDarkTheme
+                        : WorknetLightTheme
+                    }>
+                    <SplashScreenController />
+                    <RootNavigator />
+                    <StatusBar style='auto' />
+                  </ThemeProvider>
+                </AuthGateProvider>
+              </BottomSheetModalProvider>
+            </SearchLocationProvider>
+          </LocationProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -14,10 +14,28 @@ export const FEATURED_PROBLEM_IDS = [
 
 export const EMERGENCY_PROBLEM_IDS = ['p32', 'p33', 'p4', 'p6'] as const;
 
+/** Home emergency strip — single horizontal row (10 items). */
+export const HOME_EMERGENCY_PROBLEM_IDS = [
+  'p32', // Gas leak
+  'p33', // Lockout
+  'p4', // Faulty wiring
+  'p6', // Leaking taps
+  'p5', // Blocked drains
+  'p2', // Roof leaks
+  'p17', // AC repair
+  'p22', // Car breakdown
+  'p18', // Water heater
+  'p9', // Broken locks
+] as const;
+
 export const FEATURED_PROBLEMS = PROBLEMS.filter((p) =>
   (FEATURED_PROBLEM_IDS as readonly string[]).includes(p.id),
 );
 
 export const EMERGENCY_PROBLEMS = PROBLEMS.filter((p) =>
   (EMERGENCY_PROBLEM_IDS as readonly string[]).includes(p.id),
+);
+
+export const HOME_EMERGENCY_PROBLEMS = PROBLEMS.filter((p) =>
+  (HOME_EMERGENCY_PROBLEM_IDS as readonly string[]).includes(p.id),
 );

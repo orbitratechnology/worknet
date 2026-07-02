@@ -1,68 +1,90 @@
-import { ThemedText } from '@/components/themed-text';
 import { HomeBanner } from '@/components/ui/home-banner';
-import { Problems } from '@/components/ui/problems';
+import { HomeWorkerSection } from '@/components/ui/home-worker-section';
+import { NearbyEmptyState } from '@/components/ui/nearby-empty-state';
+import { EmergencyProblems, PopularServices } from '@/components/ui/problems';
+import { RadiusSelector } from '@/components/ui/radius-selector';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { SearchField } from '@/components/ui/search-field';
 import { SectionHeader } from '@/components/ui/section-header';
-import { ServiceCard } from '@/components/ui/service-card';
 import { TopBar } from '@/components/ui/top-bar';
+import { getNextRadiusKm } from '@/constants/search-defaults';
 import { Layout } from '@/constants/theme';
-import { useLocation } from '@/context/location';
+import { useSearchLocation } from '@/context/search-location';
+import { useMatchedProviders } from '@/hooks/use-matched-providers';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
-import {
-  sortModeFromChip,
-  useMatchedProviders,
-} from '@/hooks/use-matched-providers';
+import { suggestFallbackArea } from '@/lib/search-areas';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 
-function formatProviderPrice(baseRate?: number) {
-  return baseRate ? `LKR ${baseRate}/hr` : 'Contact for price';
-}
+const SECTION_FETCH_LIMIT = 8;
+const NEARBY_FETCH_LIMIT = 6;
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { coords } = useLocation();
+  const { coords, radiusKm, searchOrigin, setRadiusKm, setSearchOrigin } =
+    useSearchLocation();
   const { contentBottom } = useScreenInsets({ tabBar: true });
-  const { providers: nearbyServices, loading } = useMatchedProviders({
+
+  const geoOptions = {
     coords,
-    onlyAvailable: true,
-    sortMode: sortModeFromChip('Best Match'),
-    fetchLimit: 10,
-    maxDistanceKm: 25,
+    maxDistanceKm: radiusKm,
+  };
+
+  const { providers: topWorkers, loading: topLoading } = useMatchedProviders({
+    ...geoOptions,
+    sortMode: 'topRated',
+    minRating: 4,
+    fetchLimit: SECTION_FETCH_LIMIT,
   });
+
+  const { providers: emergencyReady, loading: emergencyLoading } =
+    useMatchedProviders({
+      ...geoOptions,
+      emergencyOnly: true,
+      sortMode: 'available',
+      fetchLimit: SECTION_FETCH_LIMIT,
+    });
+
+  const { providers: newlyJoined, loading: newLoading } = useMatchedProviders({
+    ...geoOptions,
+    sortMode: 'newest',
+    fetchLimit: SECTION_FETCH_LIMIT,
+  });
+
+  const { providers: nearbyServices, loading: nearbyLoading } =
+    useMatchedProviders({
+      ...geoOptions,
+      onlyAvailable: true,
+      sortMode: 'best',
+      fetchLimit: NEARBY_FETCH_LIMIT,
+    });
+
+  const searchLabel = searchOrigin?.label ?? 'your area';
+
+  const fallbackArea = useMemo(() => {
+    if (!coords || nearbyServices.length > 0) return null;
+    return suggestFallbackArea(coords.latitude, coords.longitude, searchLabel);
+  }, [coords, nearbyServices.length, searchLabel]);
+
+  const goToServices = React.useCallback(() => {
+    router.push('/(tabs)/services');
+  }, [router]);
 
   const handleSearchPress = React.useCallback(() => {
     router.push('/(app)/explore');
   }, [router]);
 
-  const renderNearbyCard = React.useCallback(
-    (item: (typeof nearbyServices)[number]) => (
-      <View style={styles.gridItem}>
-        <ServiceCard
-          id={item.id}
-          name={item.name}
-          role={item.primaryProfession || 'Worker'}
-          distance={
-            item.distance !== undefined
-              ? item.distance < 1
-                ? 'Under 1 km'
-                : `${item.distance.toFixed(1)} km`
-              : 'Nearby'
-          }
-          price={formatProviderPrice(item.pricing?.baseRate)}
-          imageUrl={item.imageUrl || ''}
-          availabilityStatus={item.availabilityStatus}
-          rating={item.rating}
-          reviewCount={item.reviewCount}
-          matchReason={item.matchReason}
-          showSave
-        />
-      </View>
-    ),
-    [],
-  );
+  const handleExpandRadius = React.useCallback(() => {
+    const next = getNextRadiusKm(radiusKm);
+    if (next) setRadiusKm(next);
+  }, [radiusKm, setRadiusKm]);
+
+  const nearbySubtitle = nearbyLoading
+    ? `Finding workers near ${searchLabel}…`
+    : nearbyServices.length > 0
+      ? `${nearbyServices.length} available within ${radiusKm} km`
+      : `No workers available within ${radiusKm} km`;
 
   return (
     <ScreenShell>
@@ -79,35 +101,71 @@ export default function HomeScreen() {
                 onPress={handleSearchPress}
                 editable={false}
                 showFilter
-                onFilterPress={() => router.push('/(tabs)/services')}
+                onFilterPress={goToServices}
               />
             </View>
 
             <HomeBanner />
-            <Problems />
+            <EmergencyProblems />
+            <PopularServices />
 
-            <SectionHeader
-              title='Nearby'
-              onActionPress={() => router.push('/(tabs)/services')}
+            <HomeWorkerSection
+              title='Top Workers'
+              workers={topWorkers}
+              loading={topLoading}
+              layout='carousel'
             />
 
-            {loading ? (
-              <ActivityIndicator style={{ marginVertical: 32 }} />
-            ) : nearbyServices.length === 0 ? (
-              <View style={styles.emptyNearby}>
-                <ThemedText style={styles.emptyText} selectable>
-                  No workers nearby yet. Try expanding your search.
-                </ThemedText>
-              </View>
-            ) : (
-              <View style={styles.nearbyGrid}>
-                {nearbyServices.slice(0, 6).map((item) => (
-                  <React.Fragment key={item.id}>
-                    {renderNearbyCard(item)}
-                  </React.Fragment>
-                ))}
-              </View>
-            )}
+            <HomeWorkerSection
+              title='Emergency Ready'
+              workers={emergencyReady}
+              loading={emergencyLoading}
+              layout='carousel'
+            />
+
+            <HomeWorkerSection
+              title='New on Worknet'
+              workers={newlyJoined}
+              loading={newLoading}
+              layout='carousel'
+            />
+
+            <View style={styles.nearbyBlock}>
+              <SectionHeader
+                title='Nearby'
+                subtitle={nearbySubtitle}
+                onActionPress={goToServices}
+              />
+              <RadiusSelector />
+
+              {nearbyLoading ? (
+                <ActivityIndicator style={styles.loader} />
+              ) : nearbyServices.length === 0 ? (
+                <NearbyEmptyState
+                  searchLabel={searchLabel}
+                  radiusKm={radiusKm}
+                  fallbackArea={fallbackArea}
+                  onExpandRadius={handleExpandRadius}
+                  onSearchArea={(area) =>
+                    setSearchOrigin({
+                      latitude: area.latitude,
+                      longitude: area.longitude,
+                      label: area.name,
+                      source: 'area',
+                    })
+                  }
+                  onViewMap={() => router.push('/(tabs)/map')}
+                />
+              ) : (
+                <HomeWorkerSection
+                  workers={nearbyServices}
+                  title='Nearby'
+                  layout='grid'
+                  showSave
+                  hideHeader
+                />
+              )}
+            </View>
           </>
         }
         showsVerticalScrollIndicator={false}
@@ -125,25 +183,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.screenPadding,
     marginBottom: Layout.sectionGap,
   },
-  nearbyGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 10,
-    gap: Layout.itemGap,
+  nearbyBlock: {
+    marginTop: Layout.sectionGap,
+    gap: Layout.blockGap,
   },
-  gridItem: {
-    width: '48%',
-    maxWidth: '48%',
-  },
-  emptyNearby: {
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 32,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 15,
-    textAlign: 'center',
-    opacity: 0.7,
+  loader: {
+    marginVertical: Layout.sectionGap,
   },
   scrollContent: {},
 });

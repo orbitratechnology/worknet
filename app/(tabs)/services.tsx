@@ -1,24 +1,21 @@
 import { ThemedText } from '@/components/themed-text';
 import { AppBottomSheet } from '@/components/ui/app-bottom-sheet';
 import { FilterOptions, FilterSheet } from '@/components/ui/filter-sheet';
-import { ScreenHeader } from '@/components/ui/screen-header';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { SearchField } from '@/components/ui/search-field';
 import { ServiceCard } from '@/components/ui/service-card';
 import { PROBLEMS, Problem } from '@/constants/problems';
-import { Layout } from '@/constants/theme';
-import { WORKER_TYPES } from '@/constants/worker-types';
-import { useLocation } from '@/context/location';
+import { Layout, chipBorderWidth, getSurfaceStyle } from '@/constants/theme';
+import { useSearchLocation } from '@/context/search-location';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { db } from '@/lib/firebase';
-import { matchProviders, sortModeFromChip } from '@/lib/match-providers';
 import { calculateDistance, getNearbyProviders } from '@/lib/geo';
+import { matchProviders, sortModeFromChip } from '@/lib/match-providers';
 import { ServiceProvider } from '@/types/database';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
-import * as Haptics from 'expo-haptics';
-import { useLocalSearchParams } from 'expo-router';
 import {
   QueryConstraint,
   QueryDocumentSnapshot,
@@ -30,6 +27,8 @@ import {
   startAfter,
   where,
 } from '@react-native-firebase/firestore';
+import * as Haptics from 'expo-haptics';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -63,7 +62,13 @@ export default function ServicesScreen() {
     professionId: string;
   }>();
   const theme = useTheme();
+  const scheme = useColorSchemeMode();
   const { contentBottom } = useScreenInsets({ tabBar: true });
+  const chipSurface = (selected: boolean) => ({
+    ...(selected ? {} : getSurfaceStyle(scheme, 'soft')),
+    borderWidth: chipBorderWidth(scheme, selected),
+  });
+
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const [activeFilter, setActiveFilter] =
     useState<(typeof FILTER_CHIPS)[number]>('Best Match');
@@ -94,7 +99,7 @@ export default function ServicesScreen() {
   const [advancedFilters, setAdvancedFilters] = useState<FilterOptions | null>(
     null,
   );
-  const { coords, country } = useLocation();
+  const { coords, radiusKm, setRadiusKm, searchOrigin } = useSearchLocation();
 
   const PAGE_SIZE = 15;
 
@@ -133,16 +138,10 @@ export default function ServicesScreen() {
         coords
       ) {
         try {
-          // "Nearest" now only sorts, not filters by distance range
-          // To implement sorting by nearest in Firestore, we use geohashes
-          // For now, we fetch a larger set and sort locally since Firestore doesn't support distance sort directly
-          // We can use a large radius (e.g. 500km) to simulate "no distance filter" but still use geohashes
-          const radius = 500;
-
           const results = await getNearbyProviders(
             coords.latitude,
             coords.longitude,
-            radius,
+            radiusKm,
           );
 
           let sortedResults = matchProviders(
@@ -154,6 +153,7 @@ export default function ServicesScreen() {
               searchText,
               sortMode: sortModeFromChip(activeFilter),
               onlyAvailable,
+              maxDistanceKm: radiusKm,
             },
           );
 
@@ -236,7 +236,8 @@ export default function ServicesScreen() {
     selectedProblem,
     professionId,
     coords,
-    country,
+    radiusKm,
+    searchOrigin?.label,
     refreshTrigger,
     searchText,
   ]);
@@ -321,10 +322,7 @@ export default function ServicesScreen() {
         advancedFilters?.rating && advancedFilters.rating !== 'All Ratings'
           ? parseFloat(advancedFilters.rating)
           : undefined,
-      maxDistanceKm:
-        advancedFilters?.distance && activeFilter !== 'Nearest'
-          ? advancedFilters.distance
-          : undefined,
+      maxDistanceKm: radiusKm,
     });
 
     // Price range filter
@@ -336,7 +334,11 @@ export default function ServicesScreen() {
           return rate < 1000;
         if (range === 'LKR 1k–3k' || range === '$50 - $100')
           return rate >= 1000 && rate <= 3000;
-        if (range === '> LKR 3k' || range === 'Above $100' || range === '> $100')
+        if (
+          range === '> LKR 3k' ||
+          range === 'Above $100' ||
+          range === '> $100'
+        )
           return rate > 3000;
         return true;
       });
@@ -348,6 +350,7 @@ export default function ServicesScreen() {
     services,
     advancedFilters,
     coords,
+    radiusKm,
     activeFilter,
     selectedProblem,
     professionId,
@@ -383,6 +386,7 @@ export default function ServicesScreen() {
             id={item.id}
             name={item.name}
             role={item.primaryProfession || 'Professional'}
+            professionId={item.primaryProfessionId}
             distance={displayDistance}
             price={
               item.pricing?.baseRate
@@ -393,10 +397,7 @@ export default function ServicesScreen() {
             availabilityStatus={item.availabilityStatus}
             rating={item.rating}
             reviewCount={item.reviewCount}
-            matchReason={
-              (item as any).matchReason ||
-              item.primaryProfession
-            }
+            matchReason={(item as any).matchReason || item.primaryProfession}
             showSave
           />
         </View>
@@ -422,8 +423,6 @@ export default function ServicesScreen() {
 
   return (
     <ScreenShell>
-      <ScreenHeader title='Services' subtitle='Find trusted pros near you' />
-
       <View style={styles.searchWrap}>
         <SearchField
           value={searchText}
@@ -454,6 +453,7 @@ export default function ServicesScreen() {
                         : theme.card,
                     borderColor: theme.border,
                   },
+                  chipSurface(selectedProblem?.slug === prob.slug),
                 ]}>
                 <MaterialCommunityIcons
                   name={prob.icon as any}
@@ -497,6 +497,7 @@ export default function ServicesScreen() {
                 backgroundColor: advancedFilters ? theme.text : theme.card,
                 borderColor: theme.border,
               },
+              chipSurface(!!advancedFilters),
             ]}>
             <Feather
               name='sliders'
@@ -518,14 +519,15 @@ export default function ServicesScreen() {
                   advancedFilters[k as keyof FilterOptions] !== 'All' &&
                   advancedFilters[k as keyof FilterOptions] !== 'All Ratings',
               ).length > 0
-                ? ` (${Object.keys(advancedFilters || {}).filter(
-                  (k) =>
-                    advancedFilters?.[k as keyof FilterOptions] &&
-                    advancedFilters[k as keyof FilterOptions] !== 'All' &&
-                    advancedFilters[k as keyof FilterOptions] !==
-                    'All Ratings',
-                ).length
-                })`
+                ? ` (${
+                    Object.keys(advancedFilters || {}).filter(
+                      (k) =>
+                        advancedFilters?.[k as keyof FilterOptions] &&
+                        advancedFilters[k as keyof FilterOptions] !== 'All' &&
+                        advancedFilters[k as keyof FilterOptions] !==
+                          'All Ratings',
+                    ).length
+                  })`
                 : ''}
             </ThemedText>
           </TouchableOpacity>
@@ -544,6 +546,7 @@ export default function ServicesScreen() {
                     backgroundColor: theme.text,
                     borderColor: theme.border,
                   },
+                  chipSurface(true),
                 ]}>
                 <MaterialCommunityIcons
                   name={selectedProblem.icon as any}
@@ -581,6 +584,7 @@ export default function ServicesScreen() {
                     backgroundColor: theme.text,
                     borderColor: theme.border,
                   },
+                  chipSurface(true),
                 ]}>
                 <ThemedText
                   style={[styles.filterText, { color: theme.onAccent }]}>
@@ -611,6 +615,7 @@ export default function ServicesScreen() {
                     activeFilter === filter ? theme.text : theme.card,
                   borderColor: theme.border,
                 },
+                chipSurface(activeFilter === filter),
               ]}>
               <ThemedText
                 style={[
@@ -668,20 +673,21 @@ export default function ServicesScreen() {
         />
       )}
 
-      <AppBottomSheet ref={bottomSheetRef} snapPoints={['90%']}>
+      <AppBottomSheet ref={bottomSheetRef} snapPoints={['90%']} scrollable>
         <FilterSheet
           onClose={() => bottomSheetRef.current?.dismiss()}
           initialFilters={
             advancedFilters || {
               sortBy: 'Nearest',
               rating: '4.0 & Up',
-              distance: 25,
+              distance: radiusKm,
               priceRange: 'All',
             }
           }
           onApply={(filters) => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setAdvancedFilters(filters);
+            setRadiusKm(filters.distance);
             setActiveFilter('Filters');
             bottomSheetRef.current?.dismiss();
           }}
@@ -709,7 +715,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Layout.chipRadius,
-    borderWidth: 1,
     gap: 6,
   },
   problemMiniText: {
@@ -729,7 +734,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: Layout.chipRadius,
-    borderWidth: 1,
   },
   filterText: {
     fontSize: 14,

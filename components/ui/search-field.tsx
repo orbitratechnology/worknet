@@ -1,5 +1,5 @@
-import { cardShadow, Layout } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Layout } from '@/constants/theme';
+import { useFieldStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
@@ -32,17 +32,14 @@ export function SearchField({
   showFilter = false,
 }: SearchFieldProps) {
   const theme = useTheme();
-  const colorScheme = useColorScheme() ?? 'light';
+  const fieldStyle = useFieldStyle();
 
   const inner = (
     <View
       style={[
         styles.container,
-        {
-          backgroundColor: theme.card,
-          borderColor: theme.border,
-          boxShadow: cardShadow(colorScheme),
-        },
+        { backgroundColor: theme.card },
+        fieldStyle,
       ]}>
       <View style={[styles.searchIcon, { backgroundColor: theme.muted }]}>
         <Feather name='search' size={16} color={theme.text} />
@@ -106,7 +103,6 @@ const styles = StyleSheet.create({
     paddingRight: 8,
     height: Layout.inputHeight,
     borderRadius: Layout.inputRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     gap: 10,
   },

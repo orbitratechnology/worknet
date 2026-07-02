@@ -5,6 +5,7 @@ import { ScreenShell } from '@/components/ui/screen-shell';
 import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useFieldStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { getAuthErrorMessage } from '@/lib/auth-errors';
 import { Feather } from '@expo/vector-icons';
@@ -30,6 +31,7 @@ export default function LoginScreen() {
   }>();
   const { signIn, signInWithGoogle, signInWithApple } = useAuth();
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
   const { contentBottom } = useScreenInsets();
 
   const [email, setEmail] = useState('');
@@ -148,6 +150,7 @@ export default function LoginScreen() {
                     borderColor: theme.border,
                     color: theme.text,
                   },
+                  fieldStyle,
                 ]}
                 value={email}
                 onChangeText={setEmail}
@@ -171,6 +174,7 @@ export default function LoginScreen() {
                       borderColor: theme.border,
                       color: theme.text,
                     },
+                    fieldStyle,
                   ]}
                   value={password}
                   onChangeText={setPassword}
@@ -232,14 +236,14 @@ export default function LoginScreen() {
           {/* Divider */}
           <View style={styles.dividerContainer}>
             <View
-              style={[styles.divider, { backgroundColor: theme.border }]}
+              style={[styles.divider, { backgroundColor: theme.divider }]}
             />
             <ThemedText
               style={[styles.dividerText, { color: theme.subtext }]}>
               OR
             </ThemedText>
             <View
-              style={[styles.divider, { backgroundColor: theme.border }]}
+              style={[styles.divider, { backgroundColor: theme.divider }]}
             />
           </View>
 
@@ -344,7 +348,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   input: {
-    borderWidth: 1,
     borderRadius: 16,
     borderCurve: 'continuous',
     paddingHorizontal: 16,
@@ -406,9 +409,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
     gap: 12,
-    boxShadow: '0px 2px 8px rgba(34, 34, 34, 0.06)',
   },
   socialBtnText: {
     fontSize: 15,

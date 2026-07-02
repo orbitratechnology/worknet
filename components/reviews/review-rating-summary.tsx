@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { Layout } from '@/constants/theme';
 import { Review } from '@/types/database';
+import { useSurfaceStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
@@ -16,6 +17,7 @@ export function ReviewRatingSummary({
   averageRating,
 }: ReviewRatingSummaryProps) {
   const theme = useTheme();
+  const surfaceStyle = useSurfaceStyle();
 
   const distribution = useMemo(() => {
     const counts = [0, 0, 0, 0, 0];
@@ -38,6 +40,7 @@ export function ReviewRatingSummary({
       style={[
         styles.card,
         { backgroundColor: theme.card, borderColor: theme.border },
+        surfaceStyle,
       ]}>
       <View style={styles.scoreCol}>
         <ThemedText style={styles.score} selectable>
@@ -95,7 +98,6 @@ const styles = StyleSheet.create({
     gap: 20,
     padding: 16,
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
   },
   scoreCol: {

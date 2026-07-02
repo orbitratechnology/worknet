@@ -3,6 +3,10 @@ import { formFieldStyles } from '@/components/ui/form-section';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
 import { Layout } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  useFieldStyle,
+  useSurfaceStyle,
+} from '@/hooks/use-surface-style';
 import { sendPhoneOtp } from '@/lib/phone-verification';
 import { normalizePhoneE164, isValidE164Phone } from '@/lib/validation';
 import { Feather } from '@expo/vector-icons';
@@ -27,6 +31,8 @@ export function PhoneVerifyStep({
   onVerified,
 }: PhoneVerifyStepProps) {
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
+  const surfaceStyle = useSurfaceStyle('soft');
   const [phone, setPhone] = useState(
     phoneNumber ? phoneNumber.replace('+94', '0') : '',
   );
@@ -40,15 +46,16 @@ export function PhoneVerifyStep({
 
   const inputStyle = {
     color: theme.text,
-    borderColor: theme.border,
+    borderColor: error ? theme.error : theme.border,
     backgroundColor: theme.surface,
+    ...fieldStyle,
   };
 
   const sendOtp = async () => {
     setError('');
     const e164 = normalizePhoneE164(phone);
     if (!isValidE164Phone(e164)) {
-      setError('Enter a valid mobile number.');
+      setError('Enter a valid Sri Lankan mobile number.');
       return;
     }
     setLoading(true);
@@ -59,7 +66,7 @@ export function PhoneVerifyStep({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: unknown) {
       const message =
-        e instanceof Error ? e.message : 'Could not send OTP. Try again.';
+        e instanceof Error ? e.message : 'Could not send code. Try again.';
       setError(message);
     } finally {
       setLoading(false);
@@ -76,7 +83,7 @@ export function PhoneVerifyStep({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Invalid code';
-      setError(`Invalid code. Check and try again. ${message}`);
+      setError(`That code did not work. Check the SMS and try again. ${message}`);
     } finally {
       setLoading(false);
     }
@@ -84,25 +91,47 @@ export function PhoneVerifyStep({
 
   if (verified) {
     return (
-      <View style={styles.verifiedRow}>
-        <Feather name='check-circle' size={18} color={theme.success} />
-        <ThemedText style={[styles.verifiedText, { color: theme.success }]}>
-          Phone verified · {phoneNumber}
-        </ThemedText>
+      <View
+        style={[
+          styles.verifiedRow,
+          { backgroundColor: theme.muted, borderColor: theme.border },
+          surfaceStyle,
+        ]}>
+        <Feather name='check-circle' size={20} color={theme.success} />
+        <View style={styles.verifiedTextBlock}>
+          <ThemedText style={[styles.verifiedTitle, { color: theme.success }]}>
+            Phone verified
+          </ThemedText>
+          <ThemedText style={[styles.verifiedPhone, { color: theme.subtext }]}>
+            {phoneNumber}
+          </ThemedText>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.wrap}>
+      <ThemedText style={formFieldStyles.label}>Mobile number</ThemedText>
       <View style={styles.phoneRow}>
-        <ThemedText style={[styles.prefix, { color: theme.subtext }]}>+94</ThemedText>
+        <View
+          style={[
+            styles.prefixBox,
+            { backgroundColor: theme.muted, borderColor: theme.border },
+            fieldStyle,
+          ]}>
+          <ThemedText style={[styles.prefix, { color: theme.text }]}>+94</ThemedText>
+        </View>
         <TextInput
           value={phone}
-          onChangeText={setPhone}
+          onChangeText={(t) => {
+            setPhone(t);
+            setError('');
+          }}
           placeholder='77 123 4567'
           placeholderTextColor={theme.subtext}
           keyboardType='phone-pad'
+          accessibilityLabel='Mobile phone number'
           style={[formFieldStyles.input, styles.phoneInput, inputStyle]}
         />
       </View>
@@ -112,30 +141,38 @@ export function PhoneVerifyStep({
           onPress={sendOtp}
           disabled={loading}
           style={({ pressed }) => [
-            styles.btn,
+            formFieldStyles.actionBtn,
             {
               backgroundColor: theme.accent,
-              opacity: pressed || loading ? 0.85 : 1,
+              opacity: pressed || loading ? 0.88 : 1,
+              transform: [{ scale: pressed ? 0.98 : 1 }],
             },
           ]}>
           {loading ? (
             <ActivityIndicator color={theme.onAccent} />
           ) : (
-            <ThemedText style={[styles.btnText, { color: theme.onAccent }]}>
-              Send OTP
+            <ThemedText
+              style={[formFieldStyles.actionBtnText, { color: theme.onAccent }]}>
+              Send verification code
             </ThemedText>
           )}
         </HapticPressable>
       ) : (
         <>
-          <ThemedText style={formFieldStyles.label}>Enter 6-digit code</ThemedText>
+          <ThemedText style={[formFieldStyles.label, styles.otpLabel]}>
+            Enter the 6-digit code from SMS
+          </ThemedText>
           <TextInput
             value={otp}
-            onChangeText={setOtp}
+            onChangeText={(t) => {
+              setOtp(t);
+              setError('');
+            }}
             keyboardType='number-pad'
             maxLength={6}
             placeholder='000000'
             placeholderTextColor={theme.subtext}
+            accessibilityLabel='Verification code'
             style={[
               formFieldStyles.input,
               inputStyle,
@@ -146,23 +183,30 @@ export function PhoneVerifyStep({
             onPress={verifyOtp}
             disabled={loading || otp.length < 6}
             style={({ pressed }) => [
-              styles.btn,
+              formFieldStyles.actionBtn,
               {
                 backgroundColor: theme.accent,
                 opacity: pressed || loading || otp.length < 6 ? 0.5 : 1,
+                transform: [{ scale: pressed && otp.length >= 6 ? 0.98 : 1 }],
               },
             ]}>
             {loading ? (
               <ActivityIndicator color={theme.onAccent} />
             ) : (
-              <ThemedText style={[styles.btnText, { color: theme.onAccent }]}>
-                Verify Phone
+              <ThemedText
+                style={[formFieldStyles.actionBtnText, { color: theme.onAccent }]}>
+                Verify phone
               </ThemedText>
             )}
           </HapticPressable>
-          <HapticPressable onPress={sendOtp} style={styles.resend}>
+          <HapticPressable
+            onPress={sendOtp}
+            style={({ pressed }) => [
+              styles.resend,
+              { opacity: pressed ? 0.7 : 1 },
+            ]}>
             <ThemedText style={[styles.resendText, { color: theme.accent }]}>
-              Resend code
+              Did not get a code? Send again
             </ThemedText>
           </HapticPressable>
         </>
@@ -176,28 +220,48 @@ export function PhoneVerifyStep({
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 4 },
-  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  prefix: { fontSize: 16, fontWeight: '700', width: 36 },
-  phoneInput: { flex: 1 },
-  otpInput: { letterSpacing: 4, textAlign: 'center', fontSize: 20, fontWeight: '600' },
-  btn: {
-    paddingVertical: 14,
-    borderRadius: Layout.chipRadius,
+  wrap: { width: '100%', gap: 4 },
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Layout.itemGap,
+    width: '100%',
+  },
+  prefixBox: {
+    height: Layout.fieldHeight,
+    minWidth: 56,
+    borderRadius: Layout.fieldRadius,
     borderCurve: 'continuous',
     alignItems: 'center',
-    marginTop: 8,
-    minHeight: Layout.minTouch,
+    justifyContent: 'center',
   },
-  btnText: { fontSize: 15, fontWeight: '700' },
-  resend: { alignItems: 'center', paddingVertical: 8 },
-  resendText: { fontSize: 14, fontWeight: '600' },
-  error: { fontSize: 13, marginTop: 8 },
+  prefix: { fontSize: 17, fontWeight: '700' },
+  phoneInput: { flex: 1 },
+  otpLabel: { marginTop: Layout.itemGap },
+  otpInput: {
+    letterSpacing: 6,
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  resend: {
+    alignItems: 'center',
+    paddingVertical: Layout.itemGap,
+    minHeight: Layout.minTouch,
+    justifyContent: 'center',
+  },
+  resendText: { fontSize: 15, fontWeight: '600' },
+  error: { fontSize: 14, marginTop: Layout.itemGap, lineHeight: 20 },
   verifiedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
+    gap: 12,
+    padding: Layout.blockGap,
+    borderRadius: Layout.fieldRadius,
+    borderCurve: 'continuous',
+    width: '100%',
   },
-  verifiedText: { fontSize: 14, fontWeight: '600' },
+  verifiedTextBlock: { flex: 1, gap: 2 },
+  verifiedTitle: { fontSize: 15, fontWeight: '700' },
+  verifiedPhone: { fontSize: 14 },
 });

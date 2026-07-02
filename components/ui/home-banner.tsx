@@ -1,5 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
-import { Layout, cardShadow, type ColorScheme } from '@/constants/theme';
+import { Layout, getSurfaceStyle, type ColorScheme } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -78,8 +78,8 @@ export function HomeBanner() {
           styles.banner,
           {
             backgroundColor: theme.card,
-            boxShadow: cardShadow(colorScheme),
             opacity: pressed ? 0.92 : 1,
+            ...getSurfaceStyle(colorScheme),
           },
         ]}>
         <View style={[styles.iconBox, { backgroundColor: theme.text }]}>
@@ -106,16 +106,16 @@ export function HomeBanner() {
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: Layout.screenPadding,
-    marginBottom: Layout.sectionGap - 8,
+    marginBottom: Layout.sectionGap,
     position: 'relative',
   },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    padding: Layout.blockGap,
     borderRadius: Layout.cardRadius,
     borderCurve: 'continuous',
-    gap: 12,
+    gap: Layout.blockGap,
   },
   iconBox: {
     width: 44,

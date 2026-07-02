@@ -1,4 +1,5 @@
-import { Layout } from '@/constants/theme';
+import { getFieldStyle, Layout, softShadow } from '@/constants/theme';
+import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
@@ -17,12 +18,14 @@ export function SegmentedTabs<T extends string>({
   onChange,
 }: SegmentedTabsProps<T>) {
   const theme = useTheme();
+  const scheme = useColorSchemeMode();
 
   return (
     <View
       style={[
         styles.container,
-        { backgroundColor: theme.muted, borderColor: theme.border },
+        { backgroundColor: theme.muted },
+        getFieldStyle(scheme),
       ]}>
       {tabs.map((tab) => {
         const selected = tab.key === active;
@@ -37,7 +40,7 @@ export function SegmentedTabs<T extends string>({
               styles.tab,
               selected && {
                 backgroundColor: theme.card,
-                boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                boxShadow: softShadow(scheme),
               },
               pressed && { opacity: 0.9 },
             ]}>
@@ -61,7 +64,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 4,
     borderRadius: Layout.chipRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     gap: 4,
   },

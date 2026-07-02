@@ -17,9 +17,12 @@ export const HapticPressable: React.FC<HapticPressableProps> = ({
   children,
   hapticStyle = Haptics.ImpactFeedbackStyle.Light,
   onPress,
+  disabled,
+  style,
   ...props
 }) => {
   const handlePress = (event: any) => {
+    if (disabled) return;
     Haptics.impactAsync(hapticStyle);
     if (onPress) {
       onPress(event);
@@ -27,7 +30,14 @@ export const HapticPressable: React.FC<HapticPressableProps> = ({
   };
 
   return (
-    <Pressable onPress={handlePress} {...props}>
+    <Pressable
+      onPress={handlePress}
+      disabled={disabled}
+      style={(state) => [
+        typeof style === 'function' ? style(state) : style,
+        disabled ? { opacity: 0.45 } : null,
+      ]}
+      {...props}>
       {children}
     </Pressable>
   );

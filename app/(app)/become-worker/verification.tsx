@@ -1,7 +1,6 @@
 import { PhoneVerifyStep } from '@/components/onboarding/phone-verify-step';
 import {
   WizardFooter,
-  WizardHint,
   WizardScreen,
 } from '@/components/onboarding/wizard-shell';
 import { ThemedText } from '@/components/themed-text';
@@ -23,11 +22,17 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  useFieldStyle,
+  useSurfaceStyle,
+} from '@/hooks/use-surface-style';
 import { Feather } from '@expo/vector-icons';
 
 export default function VerificationStep() {
   const router = useRouter();
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
+  const surfaceStyle = useSurfaceStyle('soft');
   const { user, userProfile, refreshUser } = useAuth();
   const [nic, setNic] = useState('');
   const [nicError, setNicError] = useState('');
@@ -71,7 +76,7 @@ export default function VerificationStep() {
     if (!nicVerified) {
       const trimmed = nic.trim();
       if (!trimmed) {
-        setNicError('Enter your NIC number to continue.');
+        setNicError('Please enter your NIC number.');
         return;
       }
       if (!isValidSriLankaNic(trimmed)) {
@@ -104,7 +109,7 @@ export default function VerificationStep() {
       <WizardScreen
         step={3}
         total={7}
-        title='Verification'
+        title='Verify your identity'
         footer={<View />}>
         <ActivityIndicator color={theme.accent} />
       </WizardScreen>
@@ -115,7 +120,7 @@ export default function VerificationStep() {
     <WizardScreen
       step={3}
       total={7}
-      title='Verification'
+      title='Verify your identity'
       footer={
         <WizardFooter
           onBack={() => router.back()}
@@ -124,20 +129,38 @@ export default function VerificationStep() {
           loading={loading}
         />
       }>
-      <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
-        We verify your identity to keep Worknet safe for everyone.
-      </ThemedText>
+      <FormSection title='Phone' icon='smartphone' variant='plain'>
+        <PhoneVerifyStep
+          verified={phoneVerified}
+          phoneNumber={userProfile?.phoneNumber ?? ''}
+          onVerified={async (phone) => {
+            if (!user?.uid) return;
+            setNicError('');
+            await savePhoneVerification(user.uid, phone);
+            await refreshUser();
+          }}
+        />
+      </FormSection>
 
-      <FormSection title='NIC number' icon='credit-card' variant='plain'>
+      <FormSection
+        title='NIC number'
+        hint='9 digits + V (old format) or 12 digits (new format). Each NIC can only be used once. Your full NIC is never shown publicly.'
+        icon='credit-card'
+        variant='plain'>
         {nicVerified ? (
-          <View style={styles.lockedRow}>
-            <Feather name='lock' size={16} color={theme.subtext} />
-            <View style={{ flex: 1, gap: 4 }}>
+          <View
+            style={[
+              styles.lockedRow,
+              { backgroundColor: theme.muted, borderColor: theme.border },
+              surfaceStyle,
+            ]}>
+            <Feather name='lock' size={18} color={theme.subtext} />
+            <View style={styles.lockedText}>
               <ThemedText style={styles.lockedValue}>
                 {maskNic(userProfile!.nicNumber!)}
               </ThemedText>
               <ThemedText style={[styles.lockedHint, { color: theme.subtext }]}>
-                NIC is tied to your account and cannot be changed.
+                Verified and locked to your account.
               </ThemedText>
             </View>
           </View>
@@ -152,6 +175,7 @@ export default function VerificationStep() {
               maxLength={12}
               keyboardType='default'
               editable={!loading}
+              accessibilityLabel='NIC number'
               style={[
                 formFieldStyles.input,
                 {
@@ -159,26 +183,11 @@ export default function VerificationStep() {
                   borderColor: nicError ? theme.error : theme.border,
                   backgroundColor: theme.surface,
                 },
+                fieldStyle,
               ]}
             />
-            <ThemedText style={[styles.formatHint, { color: theme.subtext }]}>
-              9 digits + V (old) or 12 digits (new). Each NIC can only be used once.
-            </ThemedText>
           </>
         )}
-      </FormSection>
-
-      <FormSection title='Phone verification' icon='smartphone' variant='plain'>
-        <PhoneVerifyStep
-          verified={phoneVerified}
-          phoneNumber={userProfile?.phoneNumber ?? ''}
-          onVerified={async (phone) => {
-            if (!user?.uid) return;
-            setNicError('');
-            await savePhoneVerification(user.uid, phone);
-            await refreshUser();
-          }}
-        />
       </FormSection>
 
       {nicError ? (
@@ -186,29 +195,26 @@ export default function VerificationStep() {
           {nicError}
         </ThemedText>
       ) : null}
-
-      <WizardHint>
-        Your verified NIC and phone are shown on your worker profile and cannot be
-        changed later.
-      </WizardHint>
     </WizardScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  subtitle: { fontSize: 14, lineHeight: 20, marginBottom: 16 },
-  error: { fontSize: 13, marginTop: 4 },
-  formatHint: { fontSize: 12, marginTop: 6 },
+  error: { fontSize: 14, lineHeight: 20 },
   lockedRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    paddingVertical: 4,
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderCurve: 'continuous',
+    width: '100%',
   },
+  lockedText: { flex: 1, gap: 4 },
   lockedValue: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
-  lockedHint: { fontSize: 13, lineHeight: 18 },
+  lockedHint: { fontSize: 14, lineHeight: 20 },
 });

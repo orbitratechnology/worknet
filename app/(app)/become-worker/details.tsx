@@ -1,19 +1,28 @@
-import {
-  WizardFooter,
-  WizardHint,
-  WizardScreen,
-} from '@/components/onboarding/wizard-shell';
+import { WizardFooter, WizardScreen } from '@/components/onboarding/wizard-shell';
 import { ThemedText } from '@/components/themed-text';
 import { FormSection, formFieldStyles } from '@/components/ui/form-section';
+import { FormFieldLabel } from '@/components/ui/form-field-label';
+import { FieldInfoButton } from '@/components/ui/field-info-button';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
-import { WORKER_LANGUAGES } from '@/constants/worker-languages';
+import { SocialLinkField } from '@/components/ui/social-link-field';
+import {
+  WORKER_LANGUAGES,
+  WORKER_LANGUAGE_META,
+  type WorkerLanguage,
+} from '@/constants/worker-languages';
+import { Layout, chipBorderWidth, getSurfaceStyle } from '@/constants/theme';
 import { ExperienceYearsRange } from '@/types/database';
 import { useAuth } from '@/context/auth';
 import { useRequireWorkerIdentity } from '@/hooks/use-require-worker-identity';
 import { useWorkerOnboarding } from '@/hooks/use-worker-onboarding';
+import {
+  useColorSchemeMode,
+  useFieldStyle,
+} from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { uploadLocalFile, workSamplePath } from '@/lib/storage';
 import { getUserFacingMessage } from '@/lib/user-errors';
+import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -24,6 +33,7 @@ import {
   Switch,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 const EXPERIENCE_OPTIONS: ExperienceYearsRange[] = [
@@ -34,9 +44,14 @@ const EXPERIENCE_OPTIONS: ExperienceYearsRange[] = [
   '10+',
 ];
 
+const MAX_WORK_PHOTOS = 5;
+
 export default function DetailsStep() {
   const router = useRouter();
   const theme = useTheme();
+  const scheme = useColorSchemeMode();
+  const fieldStyle = useFieldStyle();
+  const { width: screenWidth } = useWindowDimensions();
   const { user } = useAuth();
   useRequireWorkerIdentity();
   const { draft, updateDraft, loaded } = useWorkerOnboarding();
@@ -49,9 +64,14 @@ export default function DetailsStep() {
   const [emergency, setEmergency] = useState(draft.emergencyAvailability);
   const [instagram, setInstagram] = useState(draft.socialLinks.instagram ?? '');
   const [facebook, setFacebook] = useState(draft.socialLinks.facebook ?? '');
+  const [tiktok, setTiktok] = useState(draft.socialLinks.tiktok ?? '');
   const [languages, setLanguages] = useState<string[]>(
     draft.languages.length ? draft.languages : ['Sinhala'],
   );
+
+  const contentWidth = screenWidth - Layout.screenPadding * 2;
+  const photoCellWidth = (contentWidth - Layout.itemGap) / 2;
+  const photoCellHeight = photoCellWidth * 0.72;
 
   useEffect(() => {
     if (!loaded) return;
@@ -63,6 +83,7 @@ export default function DetailsStep() {
     setEmergency(draft.emergencyAvailability);
     setInstagram(draft.socialLinks.instagram ?? '');
     setFacebook(draft.socialLinks.facebook ?? '');
+    setTiktok(draft.socialLinks.tiktok ?? '');
     setLanguages(draft.languages.length ? draft.languages : ['Sinhala']);
   }, [
     loaded,
@@ -78,6 +99,21 @@ export default function DetailsStep() {
 
   const persistDetails = (patch: Parameters<typeof updateDraft>[0]) => {
     updateDraft(patch);
+  };
+
+  const persistSocial = (patch: {
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+  }) => {
+    persistDetails({
+      socialLinks: {
+        instagram,
+        facebook,
+        tiktok,
+        ...patch,
+      },
+    });
   };
 
   const toggleLanguage = (language: string) => {
@@ -96,30 +132,68 @@ export default function DetailsStep() {
     color: theme.text,
     borderColor: theme.border,
     backgroundColor: theme.surface,
+    ...fieldStyle,
   };
 
+  const chipSurface = (selected: boolean) => ({
+    ...(selected ? {} : getSurfaceStyle(scheme, 'soft')),
+    borderWidth: chipBorderWidth(scheme, selected),
+  });
+
   const addSample = async () => {
-    if (samples.length >= 5 || !user?.uid) return;
+    if (samples.length >= MAX_WORK_PHOTOS || !user?.uid) return;
+    const remaining = MAX_WORK_PHOTOS - samples.length;
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
       quality: 0.8,
     });
-    if (!result.canceled && result.assets[0]) {
-      setUploadingSample(true);
-      try {
-        const url = await uploadLocalFile(
-          result.assets[0].uri,
-          workSamplePath(user.uid, samples.length),
-        );
-        const next = [...samples, url];
+
+    if (result.canceled || result.assets.length === 0) return;
+
+    setUploadingSample(true);
+    const picked = result.assets.slice(0, remaining);
+    const uploaded: string[] = [];
+    let failed = 0;
+
+    try {
+      for (let i = 0; i < picked.length; i++) {
+        try {
+          const url = await uploadLocalFile(
+            picked[i].uri,
+            workSamplePath(user.uid, samples.length + uploaded.length),
+          );
+          uploaded.push(url);
+        } catch {
+          failed += 1;
+        }
+      }
+
+      if (uploaded.length > 0) {
+        const next = [...samples, ...uploaded];
         setSamples(next);
         persistDetails({ workSampleUris: next });
-      } catch (e) {
-        Alert.alert('Upload failed', getUserFacingMessage(e, 'upload'));
-      } finally {
-        setUploadingSample(false);
       }
+
+      if (failed > 0) {
+        Alert.alert(
+          'Some uploads failed',
+          uploaded.length > 0
+            ? `${uploaded.length} photo(s) added. ${failed} could not be uploaded. Try again.`
+            : 'Could not upload your photos. Try again.',
+        );
+      }
+    } finally {
+      setUploadingSample(false);
     }
+  };
+
+  const removeSample = (index: number) => {
+    const next = samples.filter((_, i) => i !== index);
+    setSamples(next);
+    persistDetails({ workSampleUris: next });
   };
 
   const next = async () => {
@@ -130,7 +204,7 @@ export default function DetailsStep() {
       experienceYears: experience,
       workSampleUris: samples,
       emergencyAvailability: emergency,
-      socialLinks: { instagram, facebook },
+      socialLinks: { instagram, facebook, tiktok },
       languages,
     });
     router.push('/(app)/become-worker/review');
@@ -149,25 +223,23 @@ export default function DetailsStep() {
           loading={uploadingSample}
         />
       }>
-      <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
-        Add more info to stand out — all fields here are optional.
-      </ThemedText>
-
-      <FormSection title='Contact' icon='message-circle' variant='plain'>
-        <View style={formFieldStyles.group}>
-          <ThemedText style={formFieldStyles.label}>WhatsApp</ThemedText>
-          <TextInput
-            value={whatsapp}
-            onChangeText={(t) => {
-              setWhatsapp(t);
-              persistDetails({ whatsappNumber: t });
-            }}
-            placeholder='Same as phone if empty'
-            placeholderTextColor={theme.subtext}
-            keyboardType='phone-pad'
-            style={[formFieldStyles.input, inputStyle]}
-          />
-        </View>
+      <FormSection
+        title='WhatsApp'
+        hint='Leave blank to use your verified phone number on your profile.'
+        icon='message-circle'
+        variant='plain'>
+        <TextInput
+          value={whatsapp}
+          onChangeText={(t) => {
+            setWhatsapp(t);
+            persistDetails({ whatsappNumber: t });
+          }}
+          placeholder='077 123 4567'
+          placeholderTextColor={theme.subtext}
+          keyboardType='phone-pad'
+          accessibilityLabel='WhatsApp number'
+          style={[formFieldStyles.input, inputStyle]}
+        />
       </FormSection>
 
       <FormSection title='About you' icon='file-text' variant='plain'>
@@ -180,33 +252,53 @@ export default function DetailsStep() {
           placeholder='Brief description of your experience'
           placeholderTextColor={theme.subtext}
           multiline
+          accessibilityLabel='About you'
           style={[formFieldStyles.textarea, inputStyle]}
         />
       </FormSection>
 
       <FormSection title='Languages' icon='globe' variant='plain'>
-        <ThemedText style={[formFieldStyles.hint, { color: theme.subtext }]}>
-          Select all languages you can communicate in with customers.
-        </ThemedText>
         <View style={formFieldStyles.chipGrid}>
           {WORKER_LANGUAGES.map((language) => {
             const selected = languages.includes(language);
+            const meta = WORKER_LANGUAGE_META[language as WorkerLanguage];
             return (
               <HapticPressable
                 key={language}
                 onPress={() => toggleLanguage(language)}
                 style={[
                   formFieldStyles.chip,
+                  styles.languageChip,
                   {
                     backgroundColor: selected ? theme.accent : theme.surface,
                     borderColor: selected ? theme.accent : theme.border,
                   },
+                  chipSurface(selected),
                 ]}>
+                <View
+                  style={[
+                    styles.languageGlyph,
+                    {
+                      backgroundColor: selected
+                        ? theme.onAccent + '22'
+                        : meta.accent + '18',
+                    },
+                  ]}>
+                  <ThemedText
+                    style={[
+                      styles.languageGlyphText,
+                      {
+                        color: selected ? theme.onAccent : meta.accent,
+                      },
+                    ]}>
+                    {meta.glyph}
+                  </ThemedText>
+                </View>
                 <ThemedText
                   style={{
                     color: selected ? theme.onAccent : theme.text,
                     fontWeight: '600',
-                    fontSize: 13,
+                    fontSize: 15,
                   }}>
                   {language}
                 </ThemedText>
@@ -233,12 +325,13 @@ export default function DetailsStep() {
                   borderColor:
                     experience === opt ? theme.accent : theme.border,
                 },
+                chipSurface(experience === opt),
               ]}>
               <ThemedText
                 style={{
                   color: experience === opt ? theme.onAccent : theme.text,
                   fontWeight: '600',
-                  fontSize: 13,
+                  fontSize: 14,
                 }}>
                 {opt} yrs
               </ThemedText>
@@ -247,70 +340,143 @@ export default function DetailsStep() {
         </View>
       </FormSection>
 
-      <FormSection title='Pricing' icon='dollar-sign' variant='plain'>
+      <FormSection
+        title='Hourly rate (LKR)'
+        hint='Your starting hourly price in Sri Lankan Rupees.'
+        icon='dollar-sign'
+        variant='plain'>
         <TextInput
           value={baseRate}
           onChangeText={(t) => {
             setBaseRate(t);
             persistDetails({ baseRate: t });
           }}
-          placeholder='Hourly rate in LKR, e.g. 1500'
+          placeholder='1500'
           placeholderTextColor={theme.subtext}
           keyboardType='number-pad'
+          accessibilityLabel='Hourly rate in LKR'
           style={[formFieldStyles.input, inputStyle]}
         />
       </FormSection>
 
-      <FormSection title='Work photos' icon='image' variant='plain'>
-        <View style={styles.samples}>
-          {samples.map((uri, i) => (
-            <Image key={i} source={{ uri }} style={styles.sampleImg} />
-          ))}
-          {samples.length < 5 ? (
-            <HapticPressable
-              onPress={addSample}
-              style={[styles.addSample, { borderColor: theme.border }]}>
-              <ThemedText style={{ color: theme.subtext, fontWeight: '600' }}>
-                + Add
-              </ThemedText>
-            </HapticPressable>
-          ) : null}
-        </View>
+      <FormSection
+        title={`Work photos (${samples.length}/${MAX_WORK_PHOTOS})`}
+        hint='Add up to 5 photos at once from your gallery. Good photos help customers trust your work.'
+        icon='image'
+        variant='plain'>
+        {samples.length === 0 ? (
+          <HapticPressable
+            onPress={addSample}
+            style={({ pressed }) => [
+              styles.emptyPhotos,
+              {
+                borderColor: theme.border,
+                backgroundColor: theme.surface,
+                opacity: pressed ? 0.92 : 1,
+                transform: [{ scale: pressed ? 0.99 : 1 }],
+              },
+              fieldStyle,
+            ]}>
+            <View
+              style={[styles.emptyPhotosIcon, { backgroundColor: theme.muted }]}>
+              <Feather name='image' size={28} color={theme.text} />
+            </View>
+            <ThemedText style={styles.emptyPhotosTitle}>Add work photos</ThemedText>
+            <ThemedText style={[styles.emptyPhotosSub, { color: theme.subtext }]}>
+              Select one or more photos from your gallery
+            </ThemedText>
+          </HapticPressable>
+        ) : (
+          <View style={styles.photoGrid}>
+            {samples.map((uri, i) => (
+              <View
+                key={uri}
+                style={[
+                  styles.photoCell,
+                  { width: photoCellWidth, height: photoCellHeight },
+                ]}>
+                <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit='cover' />
+                <HapticPressable
+                  onPress={() => removeSample(i)}
+                  style={[styles.removePhoto, { backgroundColor: theme.overlay }]}>
+                  <Feather name='x' size={16} color='#FFFFFF' />
+                </HapticPressable>
+              </View>
+            ))}
+            {samples.length < MAX_WORK_PHOTOS ? (
+              <HapticPressable
+                onPress={addSample}
+                style={({ pressed }) => [
+                  styles.photoCell,
+                  styles.addPhotoCell,
+                  {
+                    width: photoCellWidth,
+                    height: photoCellHeight,
+                    borderColor: theme.border,
+                    backgroundColor: theme.surface,
+                    opacity: pressed ? 0.92 : 1,
+                  },
+                  fieldStyle,
+                ]}>
+                <Feather name='plus' size={28} color={theme.text} />
+                <ThemedText style={[styles.addPhotoLabel, { color: theme.subtext }]}>
+                  Add photo
+                </ThemedText>
+              </HapticPressable>
+            ) : null}
+          </View>
+        )}
       </FormSection>
 
       <FormSection title='Social links' icon='link' variant='plain'>
         <View style={formFieldStyles.group}>
-          <TextInput
+          <FormFieldLabel label='Instagram' />
+          <SocialLinkField
+            brand='instagram'
             value={instagram}
             onChangeText={(t) => {
               setInstagram(t);
-              persistDetails({ socialLinks: { instagram: t, facebook } });
+              persistSocial({ instagram: t });
             }}
-            placeholder='Instagram handle'
-            placeholderTextColor={theme.subtext}
-            style={[formFieldStyles.input, inputStyle]}
+            placeholder='@yourhandle'
+            accessibilityLabel='Instagram handle'
           />
-          <TextInput
+        </View>
+        <View style={formFieldStyles.group}>
+          <FormFieldLabel label='Facebook' />
+          <SocialLinkField
+            brand='facebook'
             value={facebook}
             onChangeText={(t) => {
               setFacebook(t);
-              persistDetails({ socialLinks: { instagram, facebook: t } });
+              persistSocial({ facebook: t });
             }}
-            placeholder='Facebook page URL'
-            placeholderTextColor={theme.subtext}
-            style={[formFieldStyles.input, inputStyle]}
+            placeholder='Page name or URL'
+            accessibilityLabel='Facebook page'
+          />
+        </View>
+        <View style={formFieldStyles.groupLast}>
+          <FormFieldLabel label='TikTok' />
+          <SocialLinkField
+            brand='tiktok'
+            value={tiktok}
+            onChangeText={(t) => {
+              setTiktok(t);
+              persistSocial({ tiktok: t });
+            }}
+            placeholder='@yourhandle'
+            accessibilityLabel='TikTok handle'
           />
         </View>
       </FormSection>
 
       <View style={formFieldStyles.switchRow}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <ThemedText style={formFieldStyles.label}>
-            Emergency availability
-          </ThemedText>
-          <ThemedText style={[formFieldStyles.hint, { color: theme.subtext }]}>
-            Show you accept urgent jobs
-          </ThemedText>
+        <View style={styles.switchLabelRow}>
+          <ThemedText style={formFieldStyles.label}>Emergency availability</ThemedText>
+          <FieldInfoButton
+            title='Emergency availability'
+            message='Turn on if you accept urgent jobs outside normal hours.'
+          />
         </View>
         <Switch
           value={emergency}
@@ -322,31 +488,90 @@ export default function DetailsStep() {
           thumbColor={theme.onAccent}
         />
       </View>
-
-      <WizardHint>
-        Profiles with photos, bio, and pricing get more contact requests.
-      </WizardHint>
     </WizardScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  subtitle: { fontSize: 14, lineHeight: 20 },
-  samples: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  sampleImg: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    borderCurve: 'continuous',
+  languageChip: {
+    paddingHorizontal: 14,
+    minWidth: '47%',
+    flexGrow: 1,
   },
-  addSample: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
+  languageGlyph: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  languageGlyphText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  emptyPhotos: {
+    width: '100%',
+    minHeight: 160,
+    borderRadius: Layout.cardRadius,
     borderCurve: 'continuous',
-    borderWidth: 1,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: Layout.sectionGap,
+    gap: 8,
+  },
+  emptyPhotosIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyPhotosTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  emptyPhotosSub: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Layout.itemGap,
+    width: '100%',
+  },
+  photoCell: {
+    borderRadius: Layout.fieldRadius,
+    borderCurve: 'continuous',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  addPhotoCell: {
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  addPhotoLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  removePhoto: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchLabelRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
 });

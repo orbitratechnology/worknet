@@ -1,0 +1,14 @@
+# Native projects are generated on EAS via expo prebuild (CNG). Do not upload.
+android/
+ios/
+
+# Keep EAS upload archives lean
+.git/
+.cursor/
+.agents/
+**/*.md
+!README.md
+**/__tests__/**
+**/*.test.ts
+**/*.test.tsx
+rnsec-report.*

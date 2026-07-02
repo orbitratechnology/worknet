@@ -4,6 +4,10 @@ import { ScreenShell } from '@/components/ui/screen-shell';
 import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import {
+  useFieldStyle,
+  useSurfaceStyle,
+} from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { getAuthErrorMessage } from '@/lib/auth-errors';
 import * as Haptics from 'expo-haptics';
@@ -24,6 +28,8 @@ export default function ForgotPasswordScreen() {
   const router = useRouter();
   const { sendPasswordResetEmail } = useAuth();
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
+  const surfaceStyle = useSurfaceStyle('soft');
   const { contentBottom } = useScreenInsets();
 
   const [email, setEmail] = useState('');
@@ -102,6 +108,7 @@ export default function ForgotPasswordScreen() {
                       borderColor: theme.border,
                       color: theme.text,
                     },
+                    fieldStyle,
                   ]}
                   value={email}
                   onChangeText={setEmail}
@@ -143,6 +150,7 @@ export default function ForgotPasswordScreen() {
                   borderColor: theme.border,
                   opacity: pressed ? 0.9 : 1,
                 },
+                surfaceStyle,
               ]}
               onPress={() => router.replace('/login')}>
               <ThemedText style={styles.backToLoginText} type='defaultSemiBold'>
@@ -192,7 +200,6 @@ const styles = StyleSheet.create({
   inputGroup: { gap: 8 },
   label: { fontSize: 14 },
   input: {
-    borderWidth: 1,
     borderRadius: Layout.inputRadius,
     borderCurve: 'continuous',
     paddingHorizontal: 16,
@@ -212,7 +219,6 @@ const styles = StyleSheet.create({
   backToLoginBtn: {
     height: Layout.inputHeight + 4,
     borderRadius: Layout.inputRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',

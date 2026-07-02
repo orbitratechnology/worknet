@@ -1,6 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import { Layout } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSurfaceStyle } from '@/hooks/use-surface-style';
 import { isAppleSignInAvailable } from '@/lib/apple-auth';
 import { FontAwesome } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -21,6 +22,7 @@ export function SocialAuthSection({
   onApplePress,
 }: SocialAuthSectionProps) {
   const theme = useTheme();
+  const surfaceStyle = useSurfaceStyle('soft');
   const [appleAvailable, setAppleAvailable] = useState(false);
 
   useEffect(() => {
@@ -34,6 +36,7 @@ export function SocialAuthSection({
         style={({ pressed }) => [
           styles.stackBtn,
           { backgroundColor: theme.card, borderColor: theme.border },
+          surfaceStyle,
           pressed && { transform: [{ scale: 0.98 }] },
         ]}
         onPress={() => {
@@ -71,9 +74,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
     gap: 12,
-    boxShadow: '0px 2px 8px rgba(34, 34, 34, 0.06)',
   },
   stackBtnText: { fontSize: 15 },
   appleStackBtn: {
@@ -91,7 +92,6 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
     gap: 8,
     paddingVertical: 12,
   },

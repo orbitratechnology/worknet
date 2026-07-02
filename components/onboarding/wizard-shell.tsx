@@ -3,6 +3,10 @@ import { ScreenShell } from '@/components/ui/screen-shell';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
 import { Layout, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  useFieldStyle,
+  useSurfaceStyle,
+} from '@/hooks/use-surface-style';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -50,7 +54,7 @@ export function WizardProgress({ step, total, title }: WizardProgressProps) {
                 styles.dot,
                 {
                   backgroundColor: done || active ? theme.accent : theme.border,
-                  opacity: active ? 1 : done ? 1 : 0.55,
+                  opacity: active ? 1 : done ? 1 : 0.45,
                   flex: active ? 1.4 : 1,
                 },
               ]}
@@ -82,6 +86,7 @@ export function WizardFooter({
   loading,
 }: WizardFooterProps) {
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
   const router = useRouter();
   const { bottom } = useScreenInsets();
 
@@ -90,18 +95,25 @@ export function WizardFooter({
       style={[
         styles.footer,
         {
-          borderTopColor: theme.border,
-          paddingBottom: Math.max(bottom, 16),
+          borderTopColor: theme.divider,
+          backgroundColor: theme.background,
+          paddingBottom: Math.max(bottom, 12),
         },
       ]}>
       <HapticPressable
         onPress={onBack ?? (() => router.back())}
         style={({ pressed }) => [
           styles.backBtn,
-          { opacity: pressed ? 0.7 : 1 },
+          {
+            borderColor: theme.border,
+            backgroundColor: theme.surface,
+            opacity: pressed ? 0.85 : 1,
+            transform: [{ scale: pressed ? 0.98 : 1 }],
+          },
+          fieldStyle,
         ]}>
-        <Feather name='arrow-left' size={18} color={theme.subtext} />
-        <ThemedText style={[styles.backText, { color: theme.subtext }]}>
+        <Feather name='arrow-left' size={18} color={theme.text} />
+        <ThemedText style={[styles.backText, { color: theme.text }]}>
           {onBack ? 'Back' : 'Cancel'}
         </ThemedText>
       </HapticPressable>
@@ -114,6 +126,7 @@ export function WizardFooter({
           {
             backgroundColor: theme.accent,
             opacity: nextDisabled || loading ? 0.45 : pressed ? 0.9 : 1,
+            transform: [{ scale: pressed && !nextDisabled ? 0.98 : 1 }],
           },
         ]}>
         {loading ? (
@@ -175,9 +188,15 @@ export function WizardScreen({
 
 export function WizardHint({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
+  const surfaceStyle = useSurfaceStyle('soft');
   return (
-    <View style={styles.hintRow}>
-      <Feather name='info' size={14} color={theme.subtext} />
+    <View
+      style={[
+        styles.hintRow,
+        { backgroundColor: theme.muted, borderColor: theme.border },
+        surfaceStyle,
+      ]}>
+      <Feather name='info' size={16} color={theme.subtext} />
       <ThemedText style={[styles.hintText, { color: theme.subtext }]}>
         {children}
       </ThemedText>
@@ -185,70 +204,84 @@ export function WizardHint({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Shared intro copy below wizard titles */
+export const wizardIntroStyle = StyleSheet.create({
+  text: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: Layout.blockGap,
+  },
+});
+
 const styles = StyleSheet.create({
   wrap: {
     paddingHorizontal: Layout.screenPadding,
-    paddingTop: 8,
-    paddingBottom: Layout.itemGap,
+    paddingTop: Layout.itemGap,
+    paddingBottom: Layout.blockGap,
   },
   progressMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   stepLabel: {
     ...Typography.micro,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.5,
   },
   percentLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   dotsRow: {
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 16,
+    gap: 5,
+    marginBottom: Layout.blockGap,
   },
   dot: {
-    height: 4,
-    borderRadius: 2,
+    height: 5,
+    borderRadius: 3,
     borderCurve: 'continuous',
   },
   title: {
     ...Typography.title,
-    fontSize: 24,
-    letterSpacing: -0.5,
+    fontSize: 22,
+    letterSpacing: -0.4,
+    lineHeight: 28,
   },
   screen: { flex: 1 },
   body: { flex: 1 },
   scrollContent: {
     paddingHorizontal: Layout.screenPadding,
-    paddingBottom: 24,
-    gap: 20,
+    paddingBottom: Layout.sectionGap,
+    gap: Layout.formSectionGap,
+    width: '100%',
   },
   staticContent: {
     paddingHorizontal: Layout.screenPadding,
-    paddingBottom: 8,
-    gap: 12,
+    paddingBottom: Layout.itemGap,
+    gap: Layout.formSectionGap,
+    width: '100%',
   },
   footer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'stretch',
     paddingHorizontal: Layout.screenPadding,
-    paddingTop: 12,
-    gap: 12,
+    paddingTop: Layout.blockGap,
+    gap: Layout.itemGap,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   backBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    minHeight: Layout.minTouch,
+    paddingHorizontal: Layout.blockGap,
+    borderRadius: Layout.chipRadius,
+    borderCurve: 'continuous',
+    minHeight: Layout.fieldHeight,
+    minWidth: 96,
   },
   backText: { fontSize: 15, fontWeight: '600' },
   nextBtn: {
@@ -257,21 +290,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: Layout.chipRadius,
     borderCurve: 'continuous',
-    minHeight: Layout.minTouch + 8,
+    minHeight: Layout.fieldHeight,
   },
   nextText: { fontSize: 16, fontWeight: '700' },
   hintRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    marginTop: 4,
+    gap: 10,
+    padding: Layout.blockGap,
+    borderRadius: Layout.fieldRadius,
+    borderCurve: 'continuous',
+    width: '100%',
   },
   hintText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

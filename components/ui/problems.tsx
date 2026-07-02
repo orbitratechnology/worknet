@@ -1,8 +1,9 @@
 import {
-  EMERGENCY_PROBLEMS,
   FEATURED_PROBLEMS,
+  HOME_EMERGENCY_PROBLEMS,
 } from '@/constants/featured-problems';
-import { Layout } from '@/constants/theme';
+import { getSurfaceStyle, Layout } from '@/constants/theme';
+import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -16,14 +17,17 @@ function ProblemChip({
   name,
   icon,
   slug,
+  urgent,
   onPress,
 }: {
   name: string;
   icon: string;
   slug: string;
+  urgent?: boolean;
   onPress: (slug: string) => void;
 }) {
   const theme = useTheme();
+  const scheme = useColorSchemeMode();
   return (
     <Pressable
       onPress={() => onPress(slug)}
@@ -34,12 +38,22 @@ function ProblemChip({
       <View
         style={[
           styles.iconContainer,
-          { backgroundColor: theme.card, borderColor: theme.border },
+          getSurfaceStyle(scheme, 'soft'),
+          {
+            backgroundColor: urgent
+              ? scheme === 'light'
+                ? theme.error + '12'
+                : theme.card
+              : theme.card,
+            ...(urgent && scheme === 'dark'
+              ? { borderColor: theme.error + '55' }
+              : {}),
+          },
         ]}>
         <MaterialCommunityIcons
-          name={icon as any}
-          size={26}
-          color={theme.text}
+          name={icon as never}
+          size={28}
+          color={urgent ? theme.error : theme.text}
         />
       </View>
       <ThemedText
@@ -51,48 +65,64 @@ function ProblemChip({
   );
 }
 
-export function Problems() {
-  const theme = useTheme();
+function useProblemNavigation() {
   const router = useRouter();
 
-  const handleProblemPress = (slug: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (slug === 'explore') {
-      router.push('/(app)/explore');
-    } else {
-      router.push({
-        pathname: '/(tabs)/services',
-        params: { problem: slug },
-      });
-    }
-  };
+  return React.useCallback(
+    (slug: string) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (slug === 'explore') {
+        router.push('/(app)/explore');
+      } else {
+        router.push({
+          pathname: '/(tabs)/services',
+          params: { problem: slug },
+        });
+      }
+    },
+    [router],
+  );
+}
+
+export function EmergencyProblems() {
+  const theme = useTheme();
+  const handleProblemPress = useProblemNavigation();
 
   return (
-    <View style={styles.container}>
-      <SectionHeader
-        title='What do you need?'
-        onActionPress={() => handleProblemPress('explore')}
-      />
-
-      <ThemedText style={[styles.emergencyLabel, { color: theme.error }]}>
-        Emergency
-      </ThemedText>
+    <View style={styles.sectionGroup}>
+      <SectionHeader title='Emergency' />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         decelerationRate='fast'>
-        {EMERGENCY_PROBLEMS.map((prob) => (
+        {HOME_EMERGENCY_PROBLEMS.map((prob) => (
           <ProblemChip
             key={prob.id}
             name={prob.name}
             icon={prob.icon}
             slug={prob.slug}
+            urgent
             onPress={handleProblemPress}
           />
         ))}
       </ScrollView>
+      <View
+        style={[styles.sectionDivider, { backgroundColor: theme.divider }]}
+      />
+    </View>
+  );
+}
 
+export function PopularServices() {
+  const handleProblemPress = useProblemNavigation();
+
+  return (
+    <View style={styles.sectionGroup}>
+      <SectionHeader
+        title='Popular services'
+        onActionPress={() => handleProblemPress('explore')}
+      />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -112,26 +142,36 @@ export function Problems() {
   );
 }
 
+/** @deprecated Use EmergencyProblems + PopularServices for layout control */
+export function Problems() {
+  return (
+    <View style={styles.container}>
+      <EmergencyProblems />
+      <PopularServices />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     marginBottom: Layout.sectionGap,
+    gap: Layout.sectionGap,
   },
-  emergencyLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    paddingHorizontal: Layout.screenPadding,
-    marginBottom: 8,
+  sectionGroup: {
+    gap: Layout.blockGap,
+  },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: Layout.screenPadding,
+    marginTop: Layout.sectionGap,
   },
   scrollContent: {
     paddingHorizontal: Layout.screenPadding,
-    gap: 20,
-    marginBottom: 12,
+    gap: Layout.itemGap + 4,
   },
   categoryItem: {
     alignItems: 'center',
-    width: 72,
+    width: 76,
     gap: 8,
   },
   iconContainer: {
@@ -140,13 +180,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
     borderCurve: 'continuous',
   },
   categoryName: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
-    lineHeight: 14,
+    lineHeight: 15,
   },
 });

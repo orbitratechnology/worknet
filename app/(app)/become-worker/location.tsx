@@ -1,6 +1,5 @@
 import {
   WizardFooter,
-  WizardHint,
   WizardScreen,
 } from '@/components/onboarding/wizard-shell';
 import { ThemedText } from '@/components/themed-text';
@@ -8,6 +7,10 @@ import { HapticPressable } from '@/components/ui/haptic-pressable';
 import { Layout } from '@/constants/theme';
 import { useRequireWorkerIdentity } from '@/hooks/use-require-worker-identity';
 import { useWorkerOnboarding } from '@/hooks/use-worker-onboarding';
+import {
+  useFieldStyle,
+  useSurfaceStyle,
+} from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { getGeohash } from '@/lib/geo';
 import { Feather } from '@expo/vector-icons';
@@ -20,6 +23,8 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 export default function LocationStep() {
   const router = useRouter();
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
+  const surfaceStyle = useSurfaceStyle();
   useRequireWorkerIdentity();
   const { draft, updateDraft, loaded } = useWorkerOnboarding();
   const [loading, setLoading] = useState(false);
@@ -122,18 +127,17 @@ export default function LocationStep() {
           nextDisabled={!city.trim()}
         />
       }>
-      <ThemedText style={[styles.hint, { color: theme.subtext }]}>
-        Pin where you are based. Customers find workers near this location.
-      </ThemedText>
-
       <HapticPressable
         onPress={useCurrentLocation}
         style={({ pressed }) => [
           styles.gpsBtn,
           {
             borderColor: theme.border,
-            opacity: pressed ? 0.85 : 1,
+            backgroundColor: theme.surface,
+            opacity: pressed ? 0.88 : 1,
+            transform: [{ scale: pressed ? 0.98 : 1 }],
           },
+          fieldStyle,
         ]}>
         {loading ? (
           <ActivityIndicator color={theme.text} />
@@ -146,7 +150,7 @@ export default function LocationStep() {
       </HapticPressable>
 
       <View
-        style={[styles.mapWrap, { borderColor: theme.border }]}>
+        style={[styles.mapWrap, { borderColor: theme.border }, surfaceStyle]}>
         <MapView
           provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFill}
@@ -180,44 +184,38 @@ export default function LocationStep() {
       {error ? (
         <ThemedText style={[styles.error, { color: theme.error }]}>{error}</ThemedText>
       ) : null}
-
-      <WizardHint>
-        Drag the pin to adjust your exact service area. Only your city is shown
-        publicly.
-      </WizardHint>
     </WizardScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  hint: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
   gpsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 12,
-    borderRadius: Layout.chipRadius,
+    paddingVertical: 14,
+    borderRadius: Layout.fieldRadius,
     borderCurve: 'continuous',
-    borderWidth: 1,
-    marginBottom: 12,
-    minHeight: Layout.minTouch,
+    minHeight: Layout.fieldHeight,
+    width: '100%',
   },
-  gpsText: { fontSize: 14, fontWeight: '600' },
+  gpsText: { fontSize: 16, fontWeight: '600' },
   mapWrap: {
     flex: 1,
-    minHeight: 200,
+    minHeight: 220,
     borderRadius: Layout.cardRadius,
     borderCurve: 'continuous',
-    borderWidth: 1,
     overflow: 'hidden',
-    marginBottom: 12,
+    width: '100%',
   },
   cityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    width: '100%',
+    paddingVertical: 4,
   },
-  cityLabel: { fontSize: 14, fontWeight: '600' },
-  error: { fontSize: 13, marginTop: 4 },
+  cityLabel: { fontSize: 15, fontWeight: '600', flex: 1 },
+  error: { fontSize: 14, lineHeight: 20 },
 });

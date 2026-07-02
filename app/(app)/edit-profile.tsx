@@ -4,6 +4,7 @@ import { ScreenShell } from '@/components/ui/screen-shell';
 import { Layout } from '@/constants/theme';
 import { useAuth } from '@/context/auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useFieldStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { uploadLocalFile } from '@/lib/storage';
 import { Feather } from '@expo/vector-icons';
@@ -27,6 +28,7 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const { user, userProfile, updateUserProfile } = useAuth();
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
   const { bottom } = useScreenInsets();
 
   // Form State
@@ -168,6 +170,7 @@ export default function EditProfileScreen() {
                       borderColor: theme.border,
                       color: theme.text,
                     },
+                    fieldStyle,
                   ]}
                   placeholder='Enter your name'
                   placeholderTextColor={theme.subtext}
@@ -191,6 +194,7 @@ export default function EditProfileScreen() {
                       borderColor: theme.border,
                       color: theme.text,
                     },
+                    fieldStyle,
                   ]}
                   placeholder='Tell us about yourself...'
                   placeholderTextColor={theme.subtext}
@@ -212,7 +216,7 @@ export default function EditProfileScreen() {
             styles.bottomBar,
             {
               backgroundColor: theme.card,
-              borderTopColor: theme.border,
+              borderTopColor: theme.divider,
               paddingBottom: Math.max(bottom, 16),
             },
           ]}>
@@ -298,7 +302,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   input: {
-    borderWidth: 1,
     borderRadius: Layout.fieldRadius,
     borderCurve: 'continuous',
     paddingHorizontal: 16,

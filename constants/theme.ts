@@ -1,13 +1,14 @@
 /**
- * Worknet design tokens — monochrome cream palette (Airbnb-inspired clarity).
+ * Worknet design tokens — clean white light mode, shadow-based elevation.
  */
 
-import { Platform } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
-/** Warm cream canvas */
-const cream = '#FAF7F2';
-const creamMuted = '#F3EEE6';
-const creamDeep = '#EBE4DA';
+/** Light mode neutrals */
+const white = '#FFFFFF';
+const gray50 = '#F7F7F7';
+const gray100 = '#F0F0F0';
+const gray200 = '#E5E5E5';
 
 /** Ink hierarchy */
 const ink = '#222233';
@@ -19,16 +20,26 @@ const tintColorDark = '#FAFAFA';
 
 export const Layout = {
   screenPadding: 20,
-  sectionGap: 24,
-  itemGap: 10,
-  cardRadius: 20,
+  /** Space between major home / screen sections */
+  sectionGap: 28,
+  /** Space between related blocks inside a section */
+  blockGap: 16,
+  /** Space between form sections in wizards */
+  formSectionGap: 24,
+  /** Space between fields inside one form section */
+  fieldGap: 14,
+  /** Space between list items, grid cells, chips */
+  itemGap: 12,
+  cardRadius: 16,
   chipRadius: 999,
   /** Pill radius for search bars and primary CTAs */
   inputRadius: 999,
   /** Standard text field corner radius */
   fieldRadius: 12,
   inputHeight: 52,
-  minTouch: 44,
+  /** Taller fields for onboarding — easier to tap and read */
+  fieldHeight: 56,
+  minTouch: 48,
   tabBarInset: 88,
 } as const;
 
@@ -37,15 +48,16 @@ export type ColorScheme = 'light' | 'dark';
 export const Colors = {
   light: {
     text: ink,
-    background: cream,
+    background: white,
     tint: tintColorLight,
     icon: inkMuted,
     tabIconDefault: inkLight,
     tabIconSelected: ink,
-    card: '#FFFFFF',
-    border: creamDeep,
+    card: white,
+    border: 'transparent',
+    divider: gray100,
     subtext: inkMuted,
-    secondaryBackground: creamMuted,
+    secondaryBackground: gray50,
     accent: ink,
     shadow: '#222222',
     error: '#C13515',
@@ -53,15 +65,15 @@ export const Colors = {
     online: '#008A05',
     offline: inkMuted,
     notification: '#C13515',
-    surface: '#FFFFFF',
+    surface: white,
     gold: '#222222',
     onAccent: '#FFFFFF',
     onError: '#FFFFFF',
     onSuccess: '#FFFFFF',
     onGold: '#FFFFFF',
-    muted: creamMuted,
-    cream: cream,
-    creamDeep: creamDeep,
+    muted: gray50,
+    cream: white,
+    creamDeep: gray200,
     overlay: 'rgba(34, 34, 34, 0.72)',
   },
   dark: {
@@ -73,6 +85,7 @@ export const Colors = {
     tabIconSelected: tintColorDark,
     card: '#171717',
     border: '#2A2A2A',
+    divider: '#2A2A2A',
     subtext: '#A3A3A3',
     secondaryBackground: '#141414',
     accent: '#FAFAFA',
@@ -95,22 +108,57 @@ export const Colors = {
   },
 };
 
+export type ShadowLevel = 'soft' | 'card' | 'elevated';
+
+export function shadowForLevel(scheme: ColorScheme, level: ShadowLevel) {
+  if (level === 'soft') return softShadow(scheme);
+  if (level === 'elevated') return elevatedShadow(scheme);
+  return cardShadow(scheme);
+}
+
 export function cardShadow(scheme: ColorScheme) {
   return scheme === 'light'
-    ? '0 6px 20px rgba(34, 34, 34, 0.08)'
+    ? '0 4px 16px rgba(34, 34, 34, 0.10)'
     : '0 6px 20px rgba(0, 0, 0, 0.45)';
 }
 
 export function elevatedShadow(scheme: ColorScheme) {
   return scheme === 'light'
-    ? '0 12px 32px rgba(34, 34, 34, 0.12)'
+    ? '0 8px 28px rgba(34, 34, 34, 0.14)'
     : '0 12px 32px rgba(0, 0, 0, 0.55)';
 }
 
 export function softShadow(scheme: ColorScheme) {
   return scheme === 'light'
-    ? '0 2px 8px rgba(34, 34, 34, 0.06)'
+    ? '0 2px 10px rgba(34, 34, 34, 0.08)'
     : '0 2px 8px rgba(0, 0, 0, 0.35)';
+}
+
+export function surfaceBorderWidth(scheme: ColorScheme) {
+  return scheme === 'light' ? 0 : StyleSheet.hairlineWidth;
+}
+
+export function fieldBorderWidth(scheme: ColorScheme) {
+  return scheme === 'light' ? 0 : 1.5;
+}
+
+export function chipBorderWidth(scheme: ColorScheme, selected?: boolean) {
+  if (scheme === 'light') return 0;
+  return selected ? 2 : 1.5;
+}
+
+export function getSurfaceStyle(scheme: ColorScheme, level: ShadowLevel = 'card') {
+  return {
+    borderWidth: surfaceBorderWidth(scheme),
+    boxShadow: shadowForLevel(scheme, level),
+  };
+}
+
+export function getFieldStyle(scheme: ColorScheme) {
+  return {
+    borderWidth: fieldBorderWidth(scheme),
+    boxShadow: scheme === 'light' ? softShadow(scheme) : undefined,
+  };
 }
 
 export const Typography = {

@@ -1,17 +1,16 @@
 import { ThemedText } from '@/components/themed-text';
 import { ActionRow } from '@/components/ui/action-row';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
-import { ScreenHeader } from '@/components/ui/screen-header';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { SectionHeader } from '@/components/ui/section-header';
-import { cardShadow, Layout, Typography } from '@/constants/theme';
+import { Layout, Typography } from '@/constants/theme';
 import { WORKER_ONBOARDING_STEPS } from '@/constants/worker-onboarding-steps';
 import { profileCompleteness } from '@/hooks/use-worker-onboarding';
 import { useAuth } from '@/context/auth';
 import { isIdentityVerified, maskNic } from '@/lib/user-identity';
 import { useRequireAuth } from '@/hooks/use-require-auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSurfaceStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRatingDisplay, formatReviewCount } from '@/lib/ratings';
 import { db } from '@/lib/firebase';
@@ -61,19 +60,18 @@ function WorkerRegistrationPrompt({
   onRegister: () => void;
 }) {
   const theme = useTheme();
-  const colorScheme = useColorScheme() ?? 'light';
+  const surfaceStyle = useSurfaceStyle();
+  const elevatedSurface = useSurfaceStyle('elevated');
 
   return (
     <>
-      <ScreenHeader title='Become a Worker' />
-
       <View
         style={[
           styles.heroCard,
           {
             backgroundColor: theme.text,
-            boxShadow: cardShadow(colorScheme),
           },
+          elevatedSurface,
         ]}>
         <View style={styles.heroTopRow}>
           <View
@@ -131,8 +129,8 @@ function WorkerRegistrationPrompt({
           {
             backgroundColor: theme.card,
             borderColor: theme.border,
-            boxShadow: cardShadow(colorScheme),
           },
+          surfaceStyle,
         ]}>
         {ONBOARD_BENEFITS.map((benefit, index) => (
           <View key={benefit.title}>
@@ -153,7 +151,7 @@ function WorkerRegistrationPrompt({
             </View>
             {index < ONBOARD_BENEFITS.length - 1 ? (
               <View
-                style={[styles.benefitDivider, { backgroundColor: theme.border }]}
+                style={[styles.benefitDivider, { backgroundColor: theme.divider }]}
               />
             ) : null}
           </View>
@@ -170,8 +168,8 @@ function WorkerRegistrationPrompt({
             {
               backgroundColor: theme.card,
               borderColor: theme.border,
-              boxShadow: cardShadow(colorScheme),
             },
+            surfaceStyle,
           ]}>
           {ONBOARD_STEPS.map((step, index) => (
             <View key={step.label}>
@@ -184,7 +182,7 @@ function WorkerRegistrationPrompt({
               </View>
               {index < ONBOARD_STEPS.length - 1 ? (
                 <View
-                  style={[styles.stepDivider, { backgroundColor: theme.border }]}
+                  style={[styles.stepDivider, { backgroundColor: theme.divider }]}
                 />
               ) : null}
             </View>
@@ -207,7 +205,7 @@ function StatBox({
   onPress?: () => void;
 }) {
   const theme = useTheme();
-  const colorScheme = useColorScheme() ?? 'light';
+  const surfaceStyle = useSurfaceStyle();
 
   const content = (
     <>
@@ -233,8 +231,8 @@ function StatBox({
           {
             backgroundColor: theme.card,
             borderColor: theme.border,
-            boxShadow: cardShadow(colorScheme),
           },
+          surfaceStyle,
         ]}>
         {content}
       </View>
@@ -249,9 +247,9 @@ function StatBox({
         {
           backgroundColor: theme.card,
           borderColor: theme.border,
-          boxShadow: cardShadow(colorScheme),
           opacity: pressed ? 0.88 : 1,
         },
+        surfaceStyle,
       ]}>
       {content}
     </HapticPressable>
@@ -268,13 +266,9 @@ function WorkerDashboard({
   userProfile: UserProfile | null;
 }) {
   const theme = useTheme();
-  const colorScheme = useColorScheme() ?? 'light';
+  const surfaceStyle = useSurfaceStyle();
+  const softSurface = useSurfaceStyle('soft');
   const router = useRouter();
-  const [online, setOnline] = useState(data.availabilityStatus === 'online');
-
-  useEffect(() => {
-    setOnline(data.availabilityStatus === 'online');
-  }, [data.availabilityStatus]);
 
   const completeness = profileCompleteness(
     {
@@ -313,17 +307,6 @@ function WorkerDashboard({
     });
   };
 
-  const toggleAvailability = async (val: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const status = val ? 'online' : 'offline';
-    setOnline(val);
-    await setDoc(
-      doc(db, 'service_providers', userId),
-      { availabilityStatus: status, updatedAt: serverTimestamp() },
-      { merge: true },
-    );
-  };
-
   const quickActions = useMemo(
     () =>
       WORKER_ONBOARDING_STEPS.filter((step) => {
@@ -346,46 +329,6 @@ function WorkerDashboard({
 
   return (
     <>
-      <View
-        style={[
-          styles.statusCard,
-          {
-            backgroundColor: online ? theme.success + '12' : theme.card,
-            borderColor: online ? theme.success + '35' : theme.border,
-            boxShadow: cardShadow(colorScheme),
-          },
-        ]}>
-        <View
-          style={[
-            styles.statusIcon,
-            {
-              backgroundColor: online ? theme.success + '20' : theme.muted,
-            },
-          ]}>
-          <Feather
-            name={online ? 'eye' : 'eye-off'}
-            size={20}
-            color={online ? theme.success : theme.subtext}
-          />
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <ThemedText style={styles.statusTitle} type='defaultSemiBold'>
-            {online ? 'Visible in search' : 'Hidden from search'}
-          </ThemedText>
-          <ThemedText style={[styles.statusSub, { color: theme.subtext }]}>
-            {online
-              ? 'Customers nearby can find and contact you'
-              : 'Go online when you are ready to take jobs'}
-          </ThemedText>
-        </View>
-        <Switch
-          value={online}
-          onValueChange={toggleAvailability}
-          trackColor={{ false: theme.border, true: theme.online }}
-          thumbColor={theme.onAccent}
-        />
-      </View>
-
       <View style={styles.statsRow}>
         <StatBox
           label='Rating'
@@ -409,6 +352,7 @@ function WorkerDashboard({
           style={[
             styles.completenessBanner,
             { backgroundColor: theme.muted, borderColor: theme.border },
+            softSurface,
           ]}>
           <Feather name='trending-up' size={18} color={theme.text} />
           <ThemedText style={[styles.completenessText, { color: theme.subtext }]}>
@@ -435,8 +379,8 @@ function WorkerDashboard({
             {
               backgroundColor: theme.card,
               borderColor: theme.border,
-              boxShadow: cardShadow(colorScheme),
             },
+            surfaceStyle,
           ]}>
           <SectionHeader title='Verified identity' />
           <View style={styles.identityRow}>
@@ -451,7 +395,7 @@ function WorkerDashboard({
             </View>
             <Feather name='lock' size={14} color={theme.subtext} />
           </View>
-          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+          <View style={[styles.divider, { backgroundColor: theme.divider }]} />
           <View style={styles.identityRow}>
             <Feather name='smartphone' size={16} color={theme.subtext} />
             <View style={{ flex: 1, gap: 2 }}>
@@ -473,8 +417,8 @@ function WorkerDashboard({
           {
             backgroundColor: theme.card,
             borderColor: theme.border,
-            boxShadow: cardShadow(colorScheme),
           },
+          surfaceStyle,
         ]}>
         <SectionHeader title='Manage profile' />
         {quickActions.map((action, i) => (
@@ -487,22 +431,24 @@ function WorkerDashboard({
             />
             {i < quickActions.length - 1 ? (
               <View
-                style={[styles.divider, { backgroundColor: theme.border }]}
+                style={[styles.divider, { backgroundColor: theme.divider }]}
               />
             ) : null}
           </View>
         ))}
       </View>
 
-      {(data.socialLinks?.instagram || data.socialLinks?.facebook) ? (
+      {(data.socialLinks?.instagram ||
+        data.socialLinks?.facebook ||
+        data.socialLinks?.tiktok) ? (
         <View
           style={[
             styles.actionsCard,
             {
               backgroundColor: theme.card,
               borderColor: theme.border,
-              boxShadow: cardShadow(colorScheme),
             },
+            surfaceStyle,
           ]}>
           <SectionHeader title='Social links' />
           {data.socialLinks.instagram ? (
@@ -523,7 +469,7 @@ function WorkerDashboard({
             <>
               {data.socialLinks.instagram ? (
                 <View
-                  style={[styles.divider, { backgroundColor: theme.border }]}
+                  style={[styles.divider, { backgroundColor: theme.divider }]}
                 />
               ) : null}
               <ActionRow
@@ -534,6 +480,27 @@ function WorkerDashboard({
                   const url = data.socialLinks!.facebook!.startsWith('http')
                     ? data.socialLinks!.facebook!
                     : `https://${data.socialLinks!.facebook!}`;
+                  void Linking.openURL(url);
+                }}
+              />
+            </>
+          ) : null}
+          {data.socialLinks.tiktok ? (
+            <>
+              {data.socialLinks.instagram || data.socialLinks.facebook ? (
+                <View
+                  style={[styles.divider, { backgroundColor: theme.divider }]}
+                />
+              ) : null}
+              <ActionRow
+                icon='music'
+                title='TikTok'
+                subtitle={data.socialLinks.tiktok}
+                onPress={() => {
+                  const handle = data.socialLinks!.tiktok!;
+                  const url = handle.startsWith('http')
+                    ? handle
+                    : `https://tiktok.com/@${handle.replace('@', '')}`;
                   void Linking.openURL(url);
                 }}
               />
@@ -550,10 +517,11 @@ export default function OfferServiceScreen() {
   const { user, userProfile } = useAuth();
   const { requireAuth } = useRequireAuth();
   const theme = useTheme();
-  const colorScheme = useColorScheme() ?? 'light';
+  const surfaceStyle = useSurfaceStyle();
   const { contentBottom } = useScreenInsets({ tabBar: true });
   const isWorker = !!userProfile?.isServiceProvider;
   const [workerData, setWorkerData] = useState<ServiceProvider | null>(null);
+  const [online, setOnline] = useState(false);
 
   useEffect(() => {
     if (!user?.uid || !isWorker) return;
@@ -563,6 +531,22 @@ export default function OfferServiceScreen() {
       }
     });
   }, [user?.uid, isWorker]);
+
+  useEffect(() => {
+    setOnline(workerData?.availabilityStatus === 'online');
+  }, [workerData?.availabilityStatus]);
+
+  const toggleAvailability = async (val: boolean) => {
+    if (!user?.uid) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const status = val ? 'online' : 'offline';
+    setOnline(val);
+    await setDoc(
+      doc(db, 'service_providers', user.uid),
+      { availabilityStatus: status, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  };
 
   const startOnboarding = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -580,16 +564,14 @@ export default function OfferServiceScreen() {
             { paddingBottom: contentBottom },
           ]}
           showsVerticalScrollIndicator={false}>
-          <ScreenHeader title='Worker Dashboard' subtitle='Manage your profile' />
-
           <View
             style={[
               styles.profileCard,
               {
                 backgroundColor: theme.card,
                 borderColor: theme.border,
-                boxShadow: cardShadow(colorScheme),
               },
+              surfaceStyle,
             ]}>
             <Image
               source={
@@ -615,42 +597,15 @@ export default function OfferServiceScreen() {
                 </View>
               ) : null}
             </View>
-            <View
-              style={[
-                styles.onlinePill,
-                {
-                  backgroundColor:
-                    workerData.availabilityStatus === 'online'
-                      ? theme.success + '18'
-                      : theme.muted,
-                },
-              ]}>
-              <View
-                style={[
-                  styles.onlineDot,
-                  {
-                    backgroundColor:
-                      workerData.availabilityStatus === 'online'
-                        ? theme.online
-                        : theme.offline,
-                  },
-                ]}
-              />
-              <ThemedText
-                style={[
-                  styles.onlinePillText,
-                  {
-                    color:
-                      workerData.availabilityStatus === 'online'
-                        ? theme.success
-                        : theme.subtext,
-                  },
-                ]}>
-                {workerData.availabilityStatus === 'online'
-                  ? 'Online'
-                  : 'Offline'}
-              </ThemedText>
-            </View>
+            <Switch
+              value={online}
+              onValueChange={toggleAvailability}
+              trackColor={{ false: theme.border, true: theme.online }}
+              thumbColor={theme.onAccent}
+              accessibilityLabel={
+                online ? 'Available for jobs' : 'Not available for jobs'
+              }
+            />
           </View>
 
           <WorkerDashboard
@@ -747,7 +702,6 @@ const styles = StyleSheet.create({
   benefitsCard: {
     marginHorizontal: Layout.screenPadding,
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     overflow: 'hidden',
   },
@@ -788,7 +742,6 @@ const styles = StyleSheet.create({
   stepsCard: {
     marginHorizontal: Layout.screenPadding,
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     overflow: 'hidden',
   },
@@ -819,7 +772,6 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 16,
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
   },
   avatar: { width: 56, height: 56, borderRadius: 28 },
@@ -832,37 +784,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   locationText: { fontSize: 12 },
-  onlinePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: Layout.chipRadius,
-    borderCurve: 'continuous',
-  },
-  onlineDot: { width: 8, height: 8, borderRadius: 4 },
-  onlinePillText: { fontSize: 12, fontWeight: '600' },
-  statusCard: {
-    marginHorizontal: Layout.screenPadding,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: Layout.cardRadius,
-    borderWidth: 1,
-    borderCurve: 'continuous',
-    gap: 12,
-  },
-  statusIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusTitle: { fontSize: 16 },
-  statusSub: { fontSize: 13, lineHeight: 18 },
   statsRow: {
     flexDirection: 'row',
     gap: 10,
@@ -872,7 +793,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     alignItems: 'center',
     gap: 2,
@@ -886,7 +806,6 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 14,
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
   },
   completenessText: { flex: 1, fontSize: 13, lineHeight: 18 },
@@ -900,7 +819,6 @@ const styles = StyleSheet.create({
   actionsCard: {
     marginHorizontal: Layout.screenPadding,
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     overflow: 'hidden',
   },

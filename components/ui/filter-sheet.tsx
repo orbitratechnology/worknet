@@ -1,9 +1,12 @@
+import { DEFAULT_RADIUS_KM } from '@/constants/search-defaults';
 import { BottomSheetHeader } from '@/components/ui/bottom-sheet-header';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
-import { Layout } from '@/constants/theme';
+import { RadiusChips } from '@/components/ui/radius-chips';
+import { chipBorderWidth, getFieldStyle, Layout } from '@/constants/theme';
+import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../themed-text';
@@ -35,10 +38,13 @@ export function FilterSheet({
   initialFilters,
 }: FilterSheetProps) {
   const theme = useTheme();
+  const scheme = useColorSchemeMode();
   const [sortBy, setSortBy] = useState(initialFilters?.sortBy || 'Nearest');
   const [rating, setRating] = useState(initialFilters?.rating || '4.0 & Up');
   const [distance, setDistance] = useState<number>(
-    typeof initialFilters?.distance === 'number' ? initialFilters.distance : 15,
+    typeof initialFilters?.distance === 'number'
+      ? initialFilters.distance
+      : DEFAULT_RADIUS_KM,
   );
   const [priceRange, setPriceRange] = useState(
     initialFilters?.priceRange || 'All',
@@ -47,7 +53,7 @@ export function FilterSheet({
   const reset = () => {
     setSortBy('Nearest');
     setRating('4.0 & Up');
-    setDistance(15);
+    setDistance(DEFAULT_RADIUS_KM);
     setPriceRange('All');
   };
 
@@ -56,7 +62,11 @@ export function FilterSheet({
   };
 
   return (
-    <View style={styles.container}>
+    <BottomSheetScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator
+      keyboardShouldPersistTaps='handled'>
       <BottomSheetHeader
         title='Filter & Sort'
         actionLabel='Reset'
@@ -75,7 +85,7 @@ export function FilterSheet({
               style={({ pressed }) => [
                 styles.optionRow,
                 {
-                  borderBottomColor: theme.border,
+                  borderBottomColor: theme.divider,
                   backgroundColor: selected ? theme.muted : 'transparent',
                   opacity: pressed ? 0.85 : 1,
                 },
@@ -83,22 +93,21 @@ export function FilterSheet({
               onPress={() => setSortBy(item.label)}>
               <View style={styles.optionLeft}>
                 <View
-                  style={[
-                    styles.optionIcon,
-                    { backgroundColor: theme.muted },
-                  ]}>
-                  <Feather
-                    name={item.icon}
-                    size={18}
-                    color={theme.subtext}
-                  />
+                  style={[styles.optionIcon, { backgroundColor: theme.muted }]}>
+                  <Feather name={item.icon} size={18} color={theme.subtext} />
                 </View>
                 <ThemedText style={styles.optionLabel}>{item.label}</ThemedText>
               </View>
               <View
                 style={[
                   styles.radio,
-                  { borderColor: selected ? theme.accent : theme.border },
+                  {
+                    borderColor: selected
+                      ? theme.accent
+                      : scheme === 'light'
+                        ? theme.divider
+                        : theme.border,
+                  },
                 ]}>
                 {selected ? (
                   <View
@@ -127,25 +136,7 @@ export function FilterSheet({
             </ThemedText>
           </View>
         </View>
-        <Slider
-          style={styles.slider}
-          minimumValue={1}
-          maximumValue={50}
-          step={1}
-          value={distance}
-          onValueChange={setDistance}
-          minimumTrackTintColor={theme.accent}
-          maximumTrackTintColor={theme.border}
-          thumbTintColor={theme.accent}
-        />
-        <View style={styles.sliderLabels}>
-          <ThemedText style={[styles.sliderLabel, { color: theme.subtext }]}>
-            1 km
-          </ThemedText>
-          <ThemedText style={[styles.sliderLabel, { color: theme.subtext }]}>
-            50 km
-          </ThemedText>
-        </View>
+        <RadiusChips value={distance} onChange={setDistance} compact />
       </View>
 
       <View style={styles.section}>
@@ -161,10 +152,15 @@ export function FilterSheet({
                 onPress={() => setPriceRange(p)}
                 style={[
                   styles.chip,
-                  {
-                    backgroundColor: selected ? theme.accent : theme.surface,
-                    borderColor: selected ? theme.accent : theme.border,
-                  },
+                  selected
+                    ? {
+                        backgroundColor: theme.accent,
+                        borderWidth: chipBorderWidth(scheme, true),
+                      }
+                    : {
+                        backgroundColor: theme.surface,
+                        ...getFieldStyle(scheme),
+                      },
                 ]}>
                 <ThemedText
                   style={[
@@ -191,14 +187,17 @@ export function FilterSheet({
           Apply Filters
         </ThemedText>
       </HapticPressable>
-    </View>
+    </BottomSheetScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   container: {
     paddingHorizontal: Layout.screenPadding,
-    paddingBottom: Layout.screenPadding,
+    paddingBottom: Layout.screenPadding + 24,
   },
   section: {
     marginBottom: 24,
@@ -264,25 +263,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  sliderLabel: {
-    fontSize: 12,
-  },
   chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
   chip: {
-    borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Layout.chipRadius,

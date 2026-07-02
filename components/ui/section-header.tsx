@@ -1,4 +1,5 @@
 import { Layout, Typography } from '@/constants/theme';
+import { useFieldStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -8,6 +9,7 @@ import { ThemedText } from '../themed-text';
 
 type SectionHeaderProps = {
   title: string;
+  subtitle?: string;
   /** @deprecated Prefer `actionIcon` for compact actions */
   actionLabel?: string;
   actionIcon?: React.ComponentProps<typeof Feather>['name'];
@@ -16,17 +18,26 @@ type SectionHeaderProps = {
 
 export function SectionHeader({
   title,
+  subtitle,
   actionLabel,
   actionIcon = 'arrow-right',
   onActionPress,
 }: SectionHeaderProps) {
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
 
   return (
     <View style={styles.container}>
-      <ThemedText style={styles.title} selectable>
-        {title}
-      </ThemedText>
+      <View style={styles.titleBlock}>
+        <ThemedText style={styles.title} selectable>
+          {title}
+        </ThemedText>
+        {subtitle ? (
+          <ThemedText style={[styles.subtitle, { color: theme.subtext }]}>
+            {subtitle}
+          </ThemedText>
+        ) : null}
+      </View>
       {onActionPress ? (
         <Pressable
           onPress={() => {
@@ -38,9 +49,9 @@ export function SectionHeader({
           hitSlop={8}
           style={({ pressed }) => [
             styles.iconAction,
+            fieldStyle,
             {
               backgroundColor: theme.muted,
-              borderColor: theme.border,
               opacity: pressed ? 0.75 : 1,
             },
           ]}>
@@ -56,19 +67,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: Layout.screenPadding,
-    marginBottom: 14,
+  },
+  titleBlock: {
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
+    paddingRight: 8,
   },
   title: {
     ...Typography.title,
     fontSize: 20,
   },
+  subtitle: {
+    ...Typography.caption,
+    fontSize: 13,
+  },
   iconAction: {
     width: Layout.minTouch,
     height: Layout.minTouch,
     borderRadius: Layout.minTouch / 2,
-    borderWidth: 1,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',

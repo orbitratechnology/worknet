@@ -1,16 +1,17 @@
 import { ThemedText } from '@/components/themed-text';
-import { StackHeader } from '@/components/ui/stack-header';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { ServiceCard } from '@/components/ui/service-card';
-import { Layout, cardShadow } from '@/constants/theme';
+import { StackHeader } from '@/components/ui/stack-header';
+import { Layout } from '@/constants/theme';
 import { useSavedProviders } from '@/hooks/use-saved-providers';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useSurfaceStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { db } from '@/lib/firebase';
 import { ServiceProvider } from '@/types/database';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { doc, getDoc } from '@react-native-firebase/firestore';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,14 +20,12 @@ import {
   Pressable,
   StyleSheet,
   View,
-  useColorScheme,
 } from 'react-native';
 
 export default function SavedWorkersScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const colorScheme = useColorScheme();
-  const scheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const surfaceStyle = useSurfaceStyle();
   const { contentBottom } = useScreenInsets();
   const { savedIds, loading: savedLoading } = useSavedProviders();
   const [workers, setWorkers] = useState<ServiceProvider[]>([]);
@@ -74,6 +73,7 @@ export default function SavedWorkersScreen() {
           id={item.id}
           name={item.name}
           role={item.primaryProfession}
+          professionId={item.primaryProfessionId}
           distance={item.location?.homeCity ?? 'Saved'}
           price={
             item.pricing?.baseRate
@@ -107,17 +107,15 @@ export default function SavedWorkersScreen() {
               {
                 backgroundColor: theme.card,
                 borderColor: theme.border,
-                boxShadow: cardShadow(scheme),
               },
+              surfaceStyle,
             ]}>
-            <View
-              style={[
-                styles.emptyIcon,
-                { backgroundColor: theme.muted },
-              ]}>
+            <View style={[styles.emptyIcon, { backgroundColor: theme.muted }]}>
               <Feather name='heart' size={24} color={theme.subtext} />
             </View>
-            <ThemedText style={styles.emptyTitle}>No saved workers yet</ThemedText>
+            <ThemedText style={styles.emptyTitle}>
+              No saved workers yet
+            </ThemedText>
             <ThemedText style={[styles.emptySub, { color: theme.subtext }]}>
               Tap the heart on any worker profile to save them here for quick
               access.
@@ -178,7 +176,6 @@ const styles = StyleSheet.create({
     width: '100%',
     padding: 24,
     borderRadius: Layout.cardRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     alignItems: 'center',
     gap: 12,

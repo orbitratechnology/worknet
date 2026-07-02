@@ -3,6 +3,7 @@ import {
   BottomSheetHero,
 } from '@/components/ui/bottom-sheet-header';
 import { Layout } from '@/constants/theme';
+import { useFieldStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { BottomSheetModal } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +27,7 @@ export function SignInSheetHost({
   router,
 }: SignInSheetHostProps) {
   const theme = useTheme();
+  const fieldStyle = useFieldStyle();
 
   const goLogin = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -67,8 +69,8 @@ export function SignInSheetHost({
           onPress={goRegister}
           style={({ pressed }) => [
             styles.secondaryBtn,
+            fieldStyle,
             {
-              borderColor: theme.border,
               backgroundColor: theme.surface,
               opacity: pressed ? 0.85 : 1,
             },
@@ -112,7 +114,6 @@ const styles = StyleSheet.create({
     borderRadius: Layout.chipRadius,
     borderCurve: 'continuous',
     alignItems: 'center',
-    borderWidth: 1,
     marginBottom: 16,
     minHeight: Layout.minTouch + 8,
   },

@@ -1,4 +1,5 @@
-import { Layout } from '@/constants/theme';
+import { chipBorderWidth, getFieldStyle, Layout, softShadow } from '@/constants/theme';
+import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
@@ -21,6 +22,7 @@ export function FilterChip({
   trailing,
 }: FilterChipProps) {
   const theme = useTheme();
+  const scheme = useColorSchemeMode();
 
   return (
     <Pressable
@@ -30,11 +32,19 @@ export function FilterChip({
       }}
       style={({ pressed }) => [
         styles.chip,
-        {
-          backgroundColor: selected ? theme.text : theme.card,
-          borderColor: theme.border,
-          opacity: pressed ? 0.88 : 1,
-        },
+        selected
+          ? {
+              backgroundColor: theme.text,
+              borderWidth: chipBorderWidth(scheme, true),
+              ...(scheme === 'light'
+                ? { boxShadow: softShadow(scheme) }
+                : {}),
+            }
+          : {
+              backgroundColor: theme.card,
+              ...getFieldStyle(scheme),
+            },
+        { opacity: pressed ? 0.88 : 1 },
       ]}>
       {icon}
       <ThemedText
@@ -57,7 +67,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Layout.chipRadius,
-    borderWidth: 1,
     borderCurve: 'continuous',
     gap: 6,
     minHeight: Layout.minTouch,
