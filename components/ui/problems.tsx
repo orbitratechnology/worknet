@@ -2,7 +2,7 @@ import {
   FEATURED_PROBLEMS,
   HOME_EMERGENCY_PROBLEMS,
 } from '@/constants/featured-problems';
-import { getSurfaceStyle, Layout } from '@/constants/theme';
+import { Layout, getSurfaceStyle } from '@/constants/theme';
 import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -45,9 +45,6 @@ function ProblemChip({
                 ? theme.error + '12'
                 : theme.card
               : theme.card,
-            ...(urgent && scheme === 'dark'
-              ? { borderColor: theme.error + '55' }
-              : {}),
           },
         ]}>
         <MaterialCommunityIcons
