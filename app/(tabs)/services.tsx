@@ -5,7 +5,7 @@ import { ScreenShell } from '@/components/ui/screen-shell';
 import { SearchField } from '@/components/ui/search-field';
 import { ServiceCard } from '@/components/ui/service-card';
 import { PROBLEMS, Problem } from '@/constants/problems';
-import { Layout, chipBorderWidth, getSurfaceStyle } from '@/constants/theme';
+import { getChipStyle, Layout } from '@/constants/theme';
 import { useSearchLocation } from '@/context/search-location';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useColorSchemeMode } from '@/hooks/use-surface-style';
@@ -64,10 +64,7 @@ export default function ServicesScreen() {
   const theme = useTheme();
   const scheme = useColorSchemeMode();
   const { contentBottom } = useScreenInsets({ tabBar: true });
-  const chipSurface = (selected: boolean) => ({
-    ...(selected ? {} : getSurfaceStyle(scheme, 'soft')),
-    borderWidth: chipBorderWidth(scheme, selected),
-  });
+  const chipStyle = (selected: boolean) => getChipStyle(scheme, selected);
 
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const [activeFilter, setActiveFilter] =
@@ -446,14 +443,7 @@ export default function ServicesScreen() {
                 }}
                 style={[
                   styles.problemMiniChip,
-                  {
-                    backgroundColor:
-                      selectedProblem?.slug === prob.slug
-                        ? theme.text
-                        : theme.card,
-                    borderColor: theme.border,
-                  },
-                  chipSurface(selectedProblem?.slug === prob.slug),
+                  chipStyle(selectedProblem?.slug === prob.slug),
                 ]}>
                 <MaterialCommunityIcons
                   name={prob.icon as any}
@@ -493,23 +483,19 @@ export default function ServicesScreen() {
             onPress={handleOpenFilters}
             style={[
               styles.filterChip,
-              {
-                backgroundColor: advancedFilters ? theme.text : theme.card,
-                borderColor: theme.border,
-              },
-              chipSurface(!!advancedFilters),
+              chipStyle(!!advancedFilters),
             ]}>
             <Feather
               name='sliders'
               size={14}
-              color={advancedFilters ? theme.background : theme.subtext}
+              color={advancedFilters ? theme.onAccent : theme.subtext}
               style={{ marginRight: 6 }}
             />
             <ThemedText
               style={[
                 styles.filterText,
                 {
-                  color: advancedFilters ? theme.background : theme.text,
+                  color: advancedFilters ? theme.onAccent : theme.text,
                 },
               ]}>
               Filters
@@ -542,11 +528,7 @@ export default function ServicesScreen() {
                 }}
                 style={[
                   styles.filterChip,
-                  {
-                    backgroundColor: theme.text,
-                    borderColor: theme.border,
-                  },
-                  chipSurface(true),
+                  chipStyle(true),
                 ]}>
                 <MaterialCommunityIcons
                   name={selectedProblem.icon as any}
@@ -580,11 +562,7 @@ export default function ServicesScreen() {
                 }}
                 style={[
                   styles.filterChip,
-                  {
-                    backgroundColor: theme.text,
-                    borderColor: theme.border,
-                  },
-                  chipSurface(true),
+                  chipStyle(true),
                 ]}>
                 <ThemedText
                   style={[styles.filterText, { color: theme.onAccent }]}>
@@ -610,19 +588,14 @@ export default function ServicesScreen() {
               }}
               style={[
                 styles.filterChip,
-                {
-                  backgroundColor:
-                    activeFilter === filter ? theme.text : theme.card,
-                  borderColor: theme.border,
-                },
-                chipSurface(activeFilter === filter),
+                chipStyle(activeFilter === filter),
               ]}>
               <ThemedText
                 style={[
                   styles.filterText,
                   {
                     color:
-                      activeFilter === filter ? theme.background : theme.text,
+                      activeFilter === filter ? theme.onAccent : theme.text,
                   },
                 ]}>
                 {filter}

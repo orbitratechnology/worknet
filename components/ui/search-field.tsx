@@ -20,6 +20,7 @@ type SearchFieldProps = {
   onFilterPress?: () => void;
   editable?: boolean;
   showFilter?: boolean;
+  variant?: 'default' | 'header';
 };
 
 export function SearchField({
@@ -30,20 +31,29 @@ export function SearchField({
   onFilterPress,
   editable = true,
   showFilter = false,
+  variant = 'default',
 }: SearchFieldProps) {
   const theme = useTheme();
   const fieldStyle = useFieldStyle();
+  const isHeader = variant === 'header';
 
   const inner = (
     <View
       style={[
         styles.container,
-        { backgroundColor: theme.card },
-        fieldStyle,
+        isHeader ? styles.headerContainer : undefined,
+        {
+          backgroundColor: isHeader ? theme.card : theme.card,
+        },
+        isHeader ? undefined : fieldStyle,
       ]}>
-      <View style={[styles.searchIcon, { backgroundColor: theme.muted }]}>
-        <Feather name='search' size={16} color={theme.text} />
-      </View>
+      {isHeader ? (
+        <Feather name='search' size={18} color={theme.subtext} />
+      ) : (
+        <View style={[styles.searchIcon, { backgroundColor: theme.muted }]}>
+          <Feather name='search' size={16} color={theme.text} />
+        </View>
+      )}
       {editable && !onPress ? (
         <TextInput
           placeholder={placeholder}
@@ -60,7 +70,7 @@ export function SearchField({
           {value || placeholder}
         </Text>
       )}
-      {showFilter && onFilterPress ? (
+      {!isHeader && showFilter && onFilterPress ? (
         <Pressable
           onPress={onFilterPress}
           hitSlop={8}
@@ -105,6 +115,11 @@ const styles = StyleSheet.create({
     borderRadius: Layout.inputRadius,
     borderCurve: 'continuous',
     gap: 10,
+  },
+  headerContainer: {
+    paddingLeft: 16,
+    paddingRight: 16,
+    height: 52,
   },
   searchIcon: {
     width: 36,

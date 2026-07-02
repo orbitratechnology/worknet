@@ -2,7 +2,7 @@ import { DEFAULT_RADIUS_KM } from '@/constants/search-defaults';
 import { BottomSheetHeader } from '@/components/ui/bottom-sheet-header';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
 import { RadiusChips } from '@/components/ui/radius-chips';
-import { chipBorderWidth, getFieldStyle, Layout } from '@/constants/theme';
+import { getChipStyle, Layout } from '@/constants/theme';
 import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { Feather } from '@expo/vector-icons';
@@ -152,15 +152,7 @@ export function FilterSheet({
                 onPress={() => setPriceRange(p)}
                 style={[
                   styles.chip,
-                  selected
-                    ? {
-                        backgroundColor: theme.accent,
-                        borderWidth: chipBorderWidth(scheme, true),
-                      }
-                    : {
-                        backgroundColor: theme.surface,
-                        ...getFieldStyle(scheme),
-                      },
+                  getChipStyle(scheme, selected),
                 ]}>
                 <ThemedText
                   style={[

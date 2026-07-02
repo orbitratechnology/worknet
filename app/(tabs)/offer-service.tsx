@@ -1,15 +1,18 @@
 import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { ActionRow } from '@/components/ui/action-row';
 import { HapticPressable } from '@/components/ui/haptic-pressable';
 import { ScreenShell } from '@/components/ui/screen-shell';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Layout, Typography } from '@/constants/theme';
+import { Layout, Typography, cardShadow } from '@/constants/theme';
+import { WORKER_TYPES } from '@/constants/worker-types';
 import { WORKER_ONBOARDING_STEPS } from '@/constants/worker-onboarding-steps';
 import { profileCompleteness } from '@/hooks/use-worker-onboarding';
 import { useAuth } from '@/context/auth';
 import { isIdentityVerified, maskNic } from '@/lib/user-identity';
 import { useRequireAuth } from '@/hooks/use-require-auth';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSurfaceStyle } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import { formatRatingDisplay, formatReviewCount } from '@/lib/ratings';
@@ -19,6 +22,7 @@ import { UserProfile } from '@/types/user';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { doc, onSnapshot, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -253,6 +257,145 @@ function StatBox({
       ]}>
       {content}
     </HapticPressable>
+  );
+}
+
+const PROFILE_AVATAR_SIZE = 96;
+const PROFILE_HEADER_HEIGHT = 108;
+
+function resolveWorkerProfession(
+  professionId?: string,
+  professionName?: string,
+) {
+  if (professionId) {
+    const byId = WORKER_TYPES.find((w) => w.id === professionId);
+    if (byId) return byId;
+  }
+  if (professionName) {
+    const normalized = professionName.trim().toLowerCase();
+    const byName = WORKER_TYPES.find(
+      (w) => w.name.toLowerCase() === normalized,
+    );
+    if (byName) return byName;
+  }
+  return { name: professionName ?? 'Worker', icon: 'briefcase' as const, color: '#717171' };
+}
+
+function WorkerProfileHeader({
+  data,
+  online,
+  onToggleAvailability,
+  topInset,
+  bannerColor,
+}: {
+  data: ServiceProvider;
+  online: boolean;
+  onToggleAvailability: (val: boolean) => void;
+  topInset: number;
+  bannerColor: string;
+}) {
+  const theme = useTheme();
+  const colorScheme = useColorScheme() ?? 'light';
+  const scheme = colorScheme === 'dark' ? 'dark' : 'light';
+  const workerType = resolveWorkerProfession(
+    data.primaryProfessionId,
+    data.primaryProfession,
+  );
+  const avatarUri =
+    data.imageUrl ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      data.name,
+    )}&background=222222&color=FAF7F2&bold=true&size=512`;
+
+  return (
+    <View style={styles.profileHero}>
+      <View
+        style={[
+          styles.profileHeaderBand,
+          {
+            backgroundColor: bannerColor,
+            height: PROFILE_HEADER_HEIGHT + topInset,
+            paddingTop: topInset,
+          },
+        ]}
+      />
+
+      <View
+        style={[
+          styles.profileSheet,
+          {
+            backgroundColor: theme.card,
+            boxShadow: cardShadow(scheme),
+          },
+        ]}>
+        <View
+          style={[
+            styles.profileAvatarRing,
+            {
+              borderColor: theme.card,
+              backgroundColor: theme.card,
+            },
+          ]}>
+          <Image
+            source={{ uri: avatarUri }}
+            style={styles.profileAvatar}
+            contentFit='cover'
+            transition={250}
+            accessibilityLabel={`${data.name} profile photo`}
+          />
+        </View>
+
+        <ThemedText style={styles.profileHeroName} type='title' selectable>
+          {data.name}
+        </ThemedText>
+
+        <View style={styles.profileMetaRow}>
+          <MaterialCommunityIcons
+            name={workerType.icon as never}
+            size={16}
+            color={workerType.color}
+          />
+          <ThemedText
+            style={[styles.profileMetaText, { color: theme.subtext }]}
+            selectable>
+            {data.primaryProfession}
+          </ThemedText>
+        </View>
+
+        {data.location?.homeCity ? (
+          <View style={styles.profileMetaRow}>
+            <Feather name='map-pin' size={15} color={theme.subtext} />
+            <ThemedText
+              style={[styles.profileMetaText, { color: theme.subtext }]}
+              selectable>
+              {data.location.homeCity}
+            </ThemedText>
+          </View>
+        ) : null}
+
+        <View
+          style={[
+            styles.availabilityRow,
+            {
+              backgroundColor: theme.muted,
+              borderColor: theme.divider,
+            },
+          ]}>
+          <View style={styles.availabilityCopy}>
+            <ThemedText style={styles.availabilityTitle} type='defaultSemiBold'>
+              {online ? 'Available' : 'Not available'}
+            </ThemedText>
+          </View>
+          <Switch
+            value={online}
+            onValueChange={onToggleAvailability}
+            trackColor={{ false: theme.border, true: theme.online }}
+            thumbColor={theme.onAccent}
+            accessibilityLabel={online ? 'Available' : 'Not available'}
+          />
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -517,8 +660,10 @@ export default function OfferServiceScreen() {
   const { user, userProfile } = useAuth();
   const { requireAuth } = useRequireAuth();
   const theme = useTheme();
-  const surfaceStyle = useSurfaceStyle();
-  const { contentBottom } = useScreenInsets({ tabBar: true });
+  const colorScheme = useColorScheme() ?? 'light';
+  const { top, left, right, contentBottom } = useScreenInsets({ tabBar: true });
+  const bannerColor = theme.text;
+  const statusBarStyle = colorScheme === 'light' ? 'light' : 'dark';
   const isWorker = !!userProfile?.isServiceProvider;
   const [workerData, setWorkerData] = useState<ServiceProvider | null>(null);
   const [online, setOnline] = useState(false);
@@ -556,65 +701,36 @@ export default function OfferServiceScreen() {
 
   if (isWorker && workerData) {
     return (
-      <ScreenShell>
-        <ScrollView
-          contentInsetAdjustmentBehavior='automatic'
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: contentBottom },
-          ]}
-          showsVerticalScrollIndicator={false}>
-          <View
-            style={[
-              styles.profileCard,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-              },
-              surfaceStyle,
-            ]}>
-            <Image
-              source={
-                workerData.imageUrl ||
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(workerData.name)}`
-              }
-              style={styles.avatar}
+      <ThemedView style={styles.workerRoot}>
+        <StatusBar style={statusBarStyle} backgroundColor={bannerColor} />
+        <View
+          style={[
+            styles.workerContent,
+            { paddingLeft: left, paddingRight: right },
+          ]}>
+          <ScrollView
+            contentInsetAdjustmentBehavior='never'
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: contentBottom },
+            ]}
+            showsVerticalScrollIndicator={false}>
+            <WorkerProfileHeader
+              data={workerData}
+              online={online}
+              onToggleAvailability={toggleAvailability}
+              topInset={top}
+              bannerColor={bannerColor}
             />
-            <View style={styles.profileInfo}>
-              <ThemedText style={styles.profileName} type='defaultSemiBold'>
-                {workerData.name}
-              </ThemedText>
-              <ThemedText style={{ color: theme.subtext }}>
-                {workerData.primaryProfession}
-              </ThemedText>
-              {workerData.location?.homeCity ? (
-                <View style={styles.locationRow}>
-                  <Feather name='map-pin' size={12} color={theme.subtext} />
-                  <ThemedText
-                    style={[styles.locationText, { color: theme.subtext }]}>
-                    {workerData.location.homeCity}
-                  </ThemedText>
-                </View>
-              ) : null}
-            </View>
-            <Switch
-              value={online}
-              onValueChange={toggleAvailability}
-              trackColor={{ false: theme.border, true: theme.online }}
-              thumbColor={theme.onAccent}
-              accessibilityLabel={
-                online ? 'Available for jobs' : 'Not available for jobs'
-              }
-            />
-          </View>
 
-          <WorkerDashboard
-            data={workerData}
-            userId={user!.uid}
-            userProfile={userProfile}
-          />
-        </ScrollView>
-      </ScreenShell>
+            <WorkerDashboard
+              data={workerData}
+              userId={user!.uid}
+              userProfile={userProfile}
+            />
+          </ScrollView>
+        </View>
+      </ThemedView>
     );
   }
 
@@ -634,6 +750,8 @@ export default function OfferServiceScreen() {
 }
 
 const styles = StyleSheet.create({
+  workerRoot: { flex: 1 },
+  workerContent: { flex: 1 },
   scrollContent: {
     gap: Layout.sectionGap - 8,
   },
@@ -765,25 +883,76 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginLeft: 60,
   },
-  profileCard: {
+  profileHero: {
+    marginBottom: 4,
+  },
+  profileHeaderBand: {},
+  profileSheet: {
+    position: 'relative',
+    marginTop: -52,
     marginHorizontal: Layout.screenPadding,
-    flexDirection: 'row',
+    borderRadius: Layout.cardRadius + 4,
+    borderCurve: 'continuous',
+    paddingHorizontal: 24,
+    paddingTop: PROFILE_AVATAR_SIZE / 2 + 12,
+    paddingBottom: 24,
     alignItems: 'center',
-    gap: 14,
-    padding: 16,
-    borderRadius: Layout.cardRadius,
+    gap: 10,
+  },
+  profileAvatarRing: {
+    position: 'absolute',
+    top: -(PROFILE_AVATAR_SIZE / 2),
+    alignSelf: 'center',
+    width: PROFILE_AVATAR_SIZE + 8,
+    height: PROFILE_AVATAR_SIZE + 8,
+    borderRadius: (PROFILE_AVATAR_SIZE + 8) / 2,
+    borderCurve: 'continuous',
+    borderWidth: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileAvatar: {
+    width: PROFILE_AVATAR_SIZE,
+    height: PROFILE_AVATAR_SIZE,
+    borderRadius: PROFILE_AVATAR_SIZE / 2,
     borderCurve: 'continuous',
   },
-  avatar: { width: 56, height: 56, borderRadius: 28 },
-  profileInfo: { flex: 1, gap: 2 },
-  profileName: { fontSize: 18, letterSpacing: -0.3 },
-  locationRow: {
+  profileHeroName: {
+    fontSize: 24,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  profileMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    justifyContent: 'center',
+    gap: 6,
   },
-  locationText: { fontSize: 12 },
+  profileMetaText: {
+    fontSize: 15,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  availabilityRow: {
+    width: '100%',
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: Layout.fieldRadius,
+    borderCurve: 'continuous',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  availabilityCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  availabilityTitle: {
+    fontSize: 15,
+  },
   statsRow: {
     flexDirection: 'row',
     gap: 10,

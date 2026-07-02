@@ -1,5 +1,5 @@
 import { RADIUS_OPTIONS_KM } from '@/constants/search-defaults';
-import { chipBorderWidth, getFieldStyle, Layout } from '@/constants/theme';
+import { getChipStyle, Layout } from '@/constants/theme';
 import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import * as Haptics from 'expo-haptics';
@@ -32,15 +32,7 @@ export function RadiusChips({ value, onChange, compact }: RadiusChipsProps) {
             }}
             style={({ pressed }) => [
               styles.chip,
-              selected
-                ? {
-                    backgroundColor: theme.accent,
-                    borderWidth: chipBorderWidth(scheme, true),
-                  }
-                : {
-                    backgroundColor: theme.surface,
-                    ...getFieldStyle(scheme),
-                  },
+              getChipStyle(scheme, selected),
               { opacity: pressed ? 0.85 : 1 },
             ]}
             accessibilityRole='button'

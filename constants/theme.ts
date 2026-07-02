@@ -143,8 +143,24 @@ export function fieldBorderWidth(scheme: ColorScheme) {
 }
 
 export function chipBorderWidth(scheme: ColorScheme, selected?: boolean) {
-  if (scheme === 'light') return 0;
-  return selected ? 2 : 1.5;
+  if (selected) return 0;
+  return 1.5;
+}
+
+export function getChipStyle(scheme: ColorScheme, selected: boolean) {
+  const colors = Colors[scheme];
+  if (selected) {
+    return {
+      backgroundColor: colors.text,
+      borderWidth: 0,
+      borderColor: colors.text,
+    };
+  }
+  return {
+    backgroundColor: scheme === 'light' ? 'transparent' : colors.card,
+    borderWidth: chipBorderWidth(scheme, false),
+    borderColor: scheme === 'light' ? colors.creamDeep : '#3A3A3A',
+  };
 }
 
 export function getSurfaceStyle(scheme: ColorScheme, level: ShadowLevel = 'card') {

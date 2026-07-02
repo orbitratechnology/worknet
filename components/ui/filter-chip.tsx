@@ -1,4 +1,4 @@
-import { chipBorderWidth, getFieldStyle, Layout, softShadow } from '@/constants/theme';
+import { getChipStyle, Layout } from '@/constants/theme';
 import { useColorSchemeMode } from '@/hooks/use-surface-style';
 import { useTheme } from '@/hooks/use-theme';
 import * as Haptics from 'expo-haptics';
@@ -32,25 +32,14 @@ export function FilterChip({
       }}
       style={({ pressed }) => [
         styles.chip,
-        selected
-          ? {
-              backgroundColor: theme.text,
-              borderWidth: chipBorderWidth(scheme, true),
-              ...(scheme === 'light'
-                ? { boxShadow: softShadow(scheme) }
-                : {}),
-            }
-          : {
-              backgroundColor: theme.card,
-              ...getFieldStyle(scheme),
-            },
+        getChipStyle(scheme, selected),
         { opacity: pressed ? 0.88 : 1 },
       ]}>
       {icon}
       <ThemedText
         style={[
           styles.label,
-          { color: selected ? theme.background : theme.text },
+          { color: selected ? theme.onAccent : theme.text },
         ]}
         numberOfLines={1}>
         {label}

@@ -1,18 +1,20 @@
 import { HomeBanner } from '@/components/ui/home-banner';
+import { HomeScreenHeader } from '@/components/ui/home-screen-header';
 import { HomeWorkerSection } from '@/components/ui/home-worker-section';
 import { NearbyEmptyState } from '@/components/ui/nearby-empty-state';
 import { EmergencyProblems, PopularServices } from '@/components/ui/problems';
 import { RadiusSelector } from '@/components/ui/radius-selector';
-import { ScreenShell } from '@/components/ui/screen-shell';
-import { SearchField } from '@/components/ui/search-field';
 import { SectionHeader } from '@/components/ui/section-header';
-import { TopBar } from '@/components/ui/top-bar';
+import { ThemedView } from '@/components/themed-view';
 import { getNextRadiusKm } from '@/constants/search-defaults';
 import { Layout } from '@/constants/theme';
 import { useSearchLocation } from '@/context/search-location';
 import { useMatchedProviders } from '@/hooks/use-matched-providers';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useTheme } from '@/hooks/use-theme';
 import { suggestFallbackArea } from '@/lib/search-areas';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
@@ -22,9 +24,13 @@ const NEARBY_FETCH_LIMIT = 6;
 
 export default function HomeScreen() {
   const router = useRouter();
+  const theme = useTheme();
+  const colorScheme = useColorScheme() ?? 'light';
   const { coords, radiusKm, searchOrigin, setRadiusKm, setSearchOrigin } =
     useSearchLocation();
-  const { contentBottom } = useScreenInsets({ tabBar: true });
+  const { top, left, right, contentBottom } = useScreenInsets({ tabBar: true });
+  const bannerColor = theme.text;
+  const statusBarStyle = colorScheme === 'light' ? 'light' : 'dark';
 
   const geoOptions = {
     coords,
@@ -87,23 +93,20 @@ export default function HomeScreen() {
       : `No workers available within ${radiusKm} km`;
 
   return (
-    <ScreenShell>
+    <ThemedView style={styles.root}>
+      <StatusBar style={statusBarStyle} backgroundColor={bannerColor} />
       <FlatList
+        style={[styles.list, { paddingLeft: left, paddingRight: right }]}
         data={[]}
         renderItem={() => null}
+        contentInsetAdjustmentBehavior='never'
         ListHeaderComponent={
           <>
-            <TopBar />
-
-            <View style={styles.searchContainer}>
-              <SearchField
-                placeholder='Search for "Welder" or "Broken Tap"...'
-                onPress={handleSearchPress}
-                editable={false}
-                showFilter
-                onFilterPress={goToServices}
-              />
-            </View>
+            <HomeScreenHeader
+              topInset={top}
+              bannerColor={bannerColor}
+              onSearchPress={handleSearchPress}
+            />
 
             <HomeBanner />
             <EmergencyProblems />
@@ -174,15 +177,13 @@ export default function HomeScreen() {
           { paddingBottom: contentBottom },
         ]}
       />
-    </ScreenShell>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  searchContainer: {
-    paddingHorizontal: Layout.screenPadding,
-    marginBottom: Layout.sectionGap,
-  },
+  root: { flex: 1 },
+  list: { flex: 1 },
   nearbyBlock: {
     marginTop: Layout.sectionGap,
     gap: Layout.blockGap,

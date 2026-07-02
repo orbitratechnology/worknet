@@ -3,7 +3,7 @@ import { ThemedView } from '@/components/themed-view';
 import { AppBottomSheet } from '@/components/ui/app-bottom-sheet';
 import { MapFilterSheet } from '@/components/ui/map-filter-sheet';
 import { PROBLEMS } from '@/constants/problems';
-import { Layout, chipBorderWidth, getSurfaceStyle } from '@/constants/theme';
+import { getChipStyle, Layout } from '@/constants/theme';
 import { WORKER_TYPES } from '@/constants/worker-types';
 import { useLocation } from '@/context/location';
 import { useSearchLocation } from '@/context/search-location';
@@ -46,10 +46,7 @@ export default function MapScreen() {
   const scheme = useColorSchemeMode();
   const surfaceStyle = useSurfaceStyle();
   const elevatedSurface = useSurfaceStyle('elevated');
-  const chipSurface = (selected: boolean) => ({
-    ...(selected ? {} : getSurfaceStyle(scheme, 'soft')),
-    borderWidth: chipBorderWidth(scheme, selected),
-  });
+  const chipStyle = (selected: boolean) => getChipStyle(scheme, selected);
   const theme = useTheme();
   const { top, contentBottom } = useScreenInsets({ tabBar: true });
   const { refreshLocation } = useLocation();
@@ -372,14 +369,7 @@ export default function MapScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 filterBottomSheetRef.current?.present();
               }}
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                },
-                chipSurface(false),
-              ]}>
+              style={[styles.filterChip, chipStyle(false)]}>
               <Feather name='sliders' size={16} color={theme.accent} />
               <ThemedText style={[styles.categoryText, { color: theme.text }]}>
                 Filters {radiusKm}km
@@ -395,14 +385,12 @@ export default function MapScreen() {
                   onPress={() => handleWorkerTypeSelect(type.name)}
                   style={[
                     styles.categoryChip,
-                    {
-                      backgroundColor:
-                        selectedWorkerType === type.name
-                          ? type.color || theme.accent
-                          : theme.card,
-                      borderColor: theme.border,
-                    },
-                    chipSurface(selectedWorkerType === type.name),
+                    selectedWorkerType === type.name
+                      ? {
+                          backgroundColor: type.color || theme.text,
+                          borderWidth: 0,
+                        }
+                      : chipStyle(false),
                   ]}>
                   <MaterialCommunityIcons
                     name={type.icon as any}
